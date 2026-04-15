@@ -31,10 +31,19 @@
 ```
 invenClear/
 ├── src/
-│   ├── manifest.json   # MV3 매니페스트
-│   ├── content.js      # 체크박스 주입 + 삭제 로직
-│   ├── styles.css      # UI 스타일
-│   └── img/            # 아이콘 및 이미지
+│   ├── manifest.json      # MV3 매니페스트
+│   ├── content.js         # URL별 기능 라우터
+│   ├── features/
+│   │   ├── posts.js       # 내 글 선택/삭제
+│   │   └── comments.js    # 내 댓글 조회/선택/삭제
+│   ├── shared/
+│   │   ├── table.js       # 게시판 테이블 탐색
+│   │   └── util.js        # 공통 유틸
+│   ├── styles/
+│   │   ├── base.css       # 공통 UI 스타일
+│   │   ├── posts.css      # 게시글 전용 스타일
+│   │   └── comments.css   # 댓글 전용 스타일
+│   └── img/               # 아이콘 및 이미지
 └── PRIVACY.md          # 개인정보처리방침
 ```
 

@@ -23,8 +23,18 @@
       "matches": [
         "https://www.inven.co.kr/board/*"
       ],
-      "js": ["content.js"],
-      "css": ["styles.css"],
+      "js": [
+        "shared/util.js",
+        "shared/table.js",
+        "features/posts.js",
+        "features/comments.js",
+        "content.js"
+      ],
+      "css": [
+        "styles/base.css",
+        "styles/posts.css",
+        "styles/comments.css"
+      ],
       "run_at": "document_end"
     }
   ],

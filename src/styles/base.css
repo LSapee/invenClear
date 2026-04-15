@@ -1,0 +1,88 @@
+.ic-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  margin: 10px 0;
+  background: #f4f6fa;
+  border: 1px solid #dfe3e8;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #303133;
+}
+
+.ic-action-bar .ic-label {
+  font-weight: 700;
+  color: #409eff;
+  letter-spacing: 0.3px;
+}
+
+.ic-action-bar .ic-status {
+  color: #606266;
+}
+
+.ic-action-bar .ic-count {
+  color: #d0021b;
+  font-weight: 700;
+  margin: 0 2px;
+}
+
+.ic-action-bar .ic-progress {
+  color: #606266;
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.ic-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.ic-btn-delete {
+  background: #d0021b;
+  color: #fff;
+}
+
+.ic-btn-delete:hover:not(:disabled) {
+  background: #a8021b;
+}
+
+.ic-btn-delete:disabled {
+  background: #c0c4cc;
+  cursor: not-allowed;
+}
+
+col.ic-col {
+  width: 36px;
+}
+
+th.ic-col,
+td.ic-col {
+  width: 36px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.ic-check-all,
+.ic-check-row {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+tr.ic-row-deleted,
+li.ic-row-deleted {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
+
+tr.ic-row-failed,
+li.ic-row-failed {
+  background: #fef0f0 !important;
+}
