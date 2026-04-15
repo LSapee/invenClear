@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Inven Clear",
+  "version": "0.1.0",
+  "description": "인벤 '내 글/내 댓글' 목록에서 체크박스로 여러 글을 한 번에 삭제합니다.",
+  "icons": {
+    "16": "img/icons/icon16.png",
+    "32": "img/icons/icon32.png",
+    "48": "img/icons/icon48.png",
+    "128": "img/icons/icon128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "img/icons/icon16.png",
+      "32": "img/icons/icon32.png",
+      "48": "img/icons/icon48.png",
+      "128": "img/icons/icon128.png"
+    },
+    "default_title": "Inven Clear"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.inven.co.kr/board/*"
+      ],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "host_permissions": [
+    "https://www.inven.co.kr/*"
+  ]
+}
