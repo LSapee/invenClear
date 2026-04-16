@@ -162,7 +162,7 @@
     thCheck.appendChild(allCheckbox);
     theadRow.insertBefore(thCheck, theadRow.firstChild);
 
-    const BATCH_SIZE = 15;
+    const BATCH_SIZES = [10];
     const articleRows = [];
 
     tbody.querySelectorAll('tr').forEach((tr) => {
@@ -187,7 +187,7 @@
     bar.className = 'ic-action-bar';
     bar.innerHTML = `
       <span class="ic-label">InvenClear — 내 댓글</span>
-      <button type="button" class="ic-btn ic-btn-view ic-btn-batch">상단 ${BATCH_SIZE}개 조회</button>
+      ${BATCH_SIZES.map((size) => `<button type="button" class="ic-btn ic-btn-view ic-btn-batch" data-batch-size="${size}">상단 ${size}개 조회</button>`).join('\n      ')}
       <span class="ic-status">선택 <b class="ic-count">0</b>개</span>
       <button type="button" class="ic-btn ic-btn-delete" disabled>선택 삭제</button>
       <span class="ic-progress" aria-live="polite"></span>
@@ -196,7 +196,7 @@
 
     const countEl = bar.querySelector('.ic-count');
     const btnDelete = bar.querySelector('.ic-btn-delete');
-    const btnBatch = bar.querySelector('.ic-btn-batch');
+    const batchButtons = Array.from(bar.querySelectorAll('.ic-btn-batch'));
     const progressEl = bar.querySelector('.ic-progress');
     const articleMap = new Map();
 
@@ -308,33 +308,27 @@
       }
     });
 
-    btnBatch.addEventListener('click', async () => {
-      const targets = articleRows
-        .slice(0, BATCH_SIZE)
-        .filter(({ btn }) => btn.dataset.loaded !== 'true' && !btn.disabled);
-      if (targets.length === 0) return;
+    batchButtons.forEach((batchBtn) => {
+      batchBtn.addEventListener('click', async () => {
+        const batchSize = Number(batchBtn.dataset.batchSize);
+        const targets = articleRows
+          .slice(0, batchSize)
+          .filter(({ btn }) => btn.dataset.loaded !== 'true' && !btn.disabled);
+        if (targets.length === 0) return;
 
-      btnBatch.disabled = true;
-      let done = 0;
-      progressEl.textContent = `조회 중 ${done} / ${targets.length}`;
+        batchButtons.forEach((b) => (b.disabled = true));
+        let done = 0;
+        progressEl.textContent = `조회 중 ${done} / ${targets.length}`;
 
-      const CONCURRENCY = 3;
-      let index = 0;
-      const workers = Array.from({ length: Math.min(CONCURRENCY, targets.length) }, async () => {
-        while (true) {
-          const current = index++;
-          if (current >= targets.length) return;
-
-          const { tr, articleId, btn } = targets[current];
+        for (const { tr, articleId, btn } of targets) {
           await loadArticleComments(tr, articleId, btn);
           done++;
           progressEl.textContent = `조회 중 ${done} / ${targets.length}`;
         }
-      });
 
-      await Promise.all(workers);
-      progressEl.textContent = `조회 완료 — ${done}건`;
-      btnBatch.disabled = false;
+        progressEl.textContent = `조회 완료 — ${done}건`;
+        batchButtons.forEach((b) => (b.disabled = false));
+      });
     });
 
     btnDelete.addEventListener('click', async () => {
@@ -375,10 +369,8 @@
           if (li) li.classList.add('ic-row-failed');
           console.error('[InvenClear] 삭제 실패', cmtidx, error);
         }
-
-        await sleep(300);
+        await sleep(1000 + Math.random() * 3000);
       }
-
       progressEl.textContent = `완료 — 성공 ${done}건, 실패 ${failed}건. 잠시 후 새로고침합니다.`;
       setTimeout(() => location.reload(), 1500);
     });

@@ -129,7 +129,7 @@
           console.error('[InvenClear] 삭제 실패', postId, error);
         }
 
-        await sleep(300);
+        await sleep(1000 + Math.random() * 3000);
       }
 
       progressEl.textContent = `완료 — 성공 ${done}건, 실패 ${failed}건. 잠시 후 새로고침합니다.`;
