@@ -13,7 +13,7 @@
 
 .ic-action-bar .ic-label {
   font-weight: 700;
-  color: #409eff;
+  color: #db2607;
   letter-spacing: 0.3px;
 }
 
@@ -22,7 +22,7 @@
 }
 
 .ic-action-bar .ic-count {
-  color: #d0021b;
+  color: #db2607;
   font-weight: 700;
   margin: 0 2px;
 }
@@ -44,12 +44,12 @@
 }
 
 .ic-btn-delete {
-  background: #d0021b;
+  background: #db2607;
   color: #fff;
 }
 
 .ic-btn-delete:hover:not(:disabled) {
-  background: #a8021b;
+  background: #db2607;
 }
 
 .ic-btn-delete:disabled {
