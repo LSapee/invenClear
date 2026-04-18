@@ -45,6 +45,8 @@
         let tries = 0;
         let lastRowCount = 0;
         let stableTicks = 0;
+        let lastExpandClickAt = 0;
+        const expandClickCounts = new Map();
 
         const poll = setInterval(() => {
           tries++;
@@ -369,7 +371,7 @@
           if (li) li.classList.add('ic-row-failed');
           console.error('[InvenClear] 삭제 실패', cmtidx, error);
         }
-        await sleep(1000 + Math.random() * 3000);
+        await sleep(300 + Math.random() * 1300);
       }
       progressEl.textContent = `완료 — 성공 ${done}건, 실패 ${failed}건. 잠시 후 새로고침합니다.`;
       setTimeout(() => location.reload(), 1500);
