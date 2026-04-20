@@ -2,10 +2,17 @@
   'use strict';
 
   const invenClear = global.InvenClear || (global.InvenClear = {});
-  const STORAGE_KEY = 'hideMapleBadgeRows';
+  const STORAGE_KEYS = {
+    enabled: 'hideNoBadgeEnabled',
+    posts: 'hideNoBadgePosts',
+    comments: 'hideNoBadgeComments',
+  };
   const ALLOWED_BOARDS = new Set(['maple', 'lostark', 'aion2']);
+  const COMMENT_ITEM_SELECTOR = 'li[id^="cmt"]';
 
-  let enabled = false;
+  let masterEnabled = false;
+  let postFilterEnabled = false;
+  let commentFilterEnabled = false;
   let observer = null;
   let queued = false;
 
@@ -30,11 +37,7 @@
     return !!(userCell && userCell.querySelector('img.maple'));
   }
 
-  function applyBadgeFilter(nextEnabled) {
-    enabled = nextEnabled === true;
-
-    if (!isSupportedBoard()) return;
-
+  function applyPostFilter() {
     const table = getListTable();
     if (!table) return;
 
@@ -44,8 +47,35 @@
         return;
       }
 
-      row.classList.toggle('ic-badge-hidden', enabled && !hasMapleBadge(row));
+      row.classList.toggle(
+        'ic-badge-hidden',
+        masterEnabled && postFilterEnabled && !hasMapleBadge(row)
+      );
     });
+  }
+
+  function hasCommentBadge(item) {
+    return !!item.querySelector('.nickname img.confirmIcon, .nickname img.maple, img.confirmIcon');
+  }
+
+  function applyCommentFilter() {
+    document.querySelectorAll(COMMENT_ITEM_SELECTOR).forEach((item) => {
+      item.classList.toggle(
+        'ic-badge-hidden',
+        masterEnabled && commentFilterEnabled && !hasCommentBadge(item)
+      );
+    });
+  }
+
+  function applyBadgeFilter(settings = {}) {
+    if (typeof settings.enabled === 'boolean') masterEnabled = settings.enabled;
+    if (typeof settings.posts === 'boolean') postFilterEnabled = settings.posts;
+    if (typeof settings.comments === 'boolean') commentFilterEnabled = settings.comments;
+
+    if (!isSupportedBoard()) return;
+
+    applyPostFilter();
+    applyCommentFilter();
   }
 
   function queueApply() {
@@ -54,7 +84,7 @@
 
     requestAnimationFrame(() => {
       queued = false;
-      applyBadgeFilter(enabled);
+      applyBadgeFilter();
     });
   }
 
@@ -62,7 +92,7 @@
     if (observer || !document.body) return;
 
     observer = new MutationObserver(() => {
-      if (!enabled) return;
+      if (!masterEnabled || (!postFilterEnabled && !commentFilterEnabled)) return;
       queueApply();
     });
 
@@ -73,13 +103,44 @@
     if (!isSupportedBoard()) return;
     if (!global.chrome || !chrome.storage || !chrome.storage.sync) return;
 
-    chrome.storage.sync.get({ [STORAGE_KEY]: false }, (items) => {
-      applyBadgeFilter(items[STORAGE_KEY] === true);
-    });
+    chrome.storage.sync.get(
+      {
+        [STORAGE_KEYS.enabled]: false,
+        [STORAGE_KEYS.posts]: true,
+        [STORAGE_KEYS.comments]: true,
+      },
+      (items) => {
+        applyBadgeFilter({
+          enabled: items[STORAGE_KEYS.enabled] === true,
+          posts: items[STORAGE_KEYS.posts] === true,
+          comments: items[STORAGE_KEYS.comments] === true,
+        });
+      }
+    );
 
     chrome.storage.onChanged.addListener((changes, areaName) => {
-      if (areaName !== 'sync' || !changes[STORAGE_KEY]) return;
-      applyBadgeFilter(changes[STORAGE_KEY].newValue === true);
+      if (areaName !== 'sync') return;
+
+      const nextSettings = {};
+      let hasRelevantChange = false;
+
+      if (changes[STORAGE_KEYS.enabled]) {
+        nextSettings.enabled = changes[STORAGE_KEYS.enabled].newValue === true;
+        hasRelevantChange = true;
+      }
+
+      if (changes[STORAGE_KEYS.posts]) {
+        nextSettings.posts = changes[STORAGE_KEYS.posts].newValue === true;
+        hasRelevantChange = true;
+      }
+
+      if (changes[STORAGE_KEYS.comments]) {
+        nextSettings.comments = changes[STORAGE_KEYS.comments].newValue === true;
+        hasRelevantChange = true;
+      }
+
+      if (!hasRelevantChange) return;
+      applyBadgeFilter(nextSettings);
     });
 
     ensureObserver();

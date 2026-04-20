@@ -56,6 +56,25 @@ body {
   background: var(--panel);
 }
 
+.toggle + .toggle {
+  margin-top: 10px;
+}
+
+.subtoggles {
+  margin-top: 10px;
+  padding-left: 10px;
+  border-left: 2px solid rgba(219, 38, 7, 0.14);
+}
+
+.toggle-subitem {
+  padding: 12px 14px;
+  border-radius: 12px;
+}
+
+.toggle-subitem + .toggle-subitem {
+  margin-top: 8px;
+}
+
 .toggle-copy {
   display: flex;
   flex-direction: column;
@@ -74,6 +93,20 @@ body {
 .switch {
   position: relative;
   flex: none;
+}
+
+.switch-small .slider {
+  width: 46px;
+  height: 28px;
+}
+
+.switch-small .slider::after {
+  width: 20px;
+  height: 20px;
+}
+
+.switch-small input:checked + .slider::after {
+  transform: translateX(18px);
 }
 
 .switch input {
@@ -117,4 +150,8 @@ body {
   margin: 12px 2px 0;
   color: var(--muted);
   font-size: 12px;
+}
+
+.status-sub {
+  margin-top: 6px;
 }

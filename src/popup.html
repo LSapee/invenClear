@@ -10,18 +10,41 @@
     <main class="popup">
       <div class="eyebrow">Inven Clear</div>
       <h1 class="title">No인장 가리기</h1>
-      <p class="desc">글쓴이 칸에 인증 아이콘이 없는 글을 숨깁니다.</p>
-      <label class="toggle" for="hideBadgeToggle">
+      <p class="desc">메인 토글을 켜면 인증 아이콘이 없는 항목을 숨기고, 아래에서 게시글과 댓글 대상을 따로 조절할 수 있습니다.</p>
+      <label class="toggle" for="hideNoBadgeEnabled">
         <span class="toggle-copy">
-          <span class="toggle-title">기능 켜기</span>
-          <span class="toggle-sub">적용 게시판: maple, lostark, aion2</span>
+          <span class="toggle-title">No인장 가리기</span>
+          <span class="toggle-sub">기본값으로 게시글과 댓글 가리기가 함께 켜집니다.</span>
         </span>
         <span class="switch">
-          <input id="hideBadgeToggle" type="checkbox">
+          <input id="hideNoBadgeEnabled" type="checkbox">
           <span class="slider" aria-hidden="true"></span>
         </span>
       </label>
+      <section class="subtoggles" aria-label="세부 옵션">
+        <label class="toggle toggle-subitem" for="hideNoBadgePosts">
+          <span class="toggle-copy">
+            <span class="toggle-title">게시글 가리기</span>
+            <span class="toggle-sub">목록에서 인증 아이콘 없는 일반 글 숨김</span>
+          </span>
+          <span class="switch switch-small">
+            <input id="hideNoBadgePosts" type="checkbox">
+            <span class="slider" aria-hidden="true"></span>
+          </span>
+        </label>
+        <label class="toggle toggle-subitem" for="hideNoBadgeComments">
+          <span class="toggle-copy">
+            <span class="toggle-title">댓글 가리기</span>
+            <span class="toggle-sub">본문 댓글에서 인증 아이콘 없는 댓글 숨김</span>
+          </span>
+          <span class="switch switch-small">
+            <input id="hideNoBadgeComments" type="checkbox">
+            <span class="slider" aria-hidden="true"></span>
+          </span>
+        </label>
+      </section>
       <p class="status" id="statusText">설정을 불러오는 중입니다.</p>
+      <p class="status status-sub">적용 게시판: maple, lostark, aion2</p>
     </main>
     <script src="popup.js"></script>
   </body>

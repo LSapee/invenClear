@@ -90,3 +90,7 @@ li.ic-row-failed {
 tr.ic-badge-hidden {
   display: none !important;
 }
+
+li.ic-badge-hidden {
+  display: none !important;
+}
