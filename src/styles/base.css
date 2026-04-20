@@ -86,3 +86,7 @@ tr.ic-row-failed,
 li.ic-row-failed {
   background: #fef0f0 !important;
 }
+
+tr.ic-badge-hidden {
+  display: none !important;
+}

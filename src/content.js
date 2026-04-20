@@ -4,6 +4,10 @@
   const invenClear = global.InvenClear;
   if (!invenClear || !invenClear.table || !invenClear.features) return;
 
+  if (invenClear.features.badgeFilter) {
+    invenClear.features.badgeFilter.initBadgeFilter();
+  }
+
   const context = invenClear.table.getPageContext();
   if (!context) return;
   if (context.table.dataset.invenClear === 'true') return;

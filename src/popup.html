@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Inven Clear</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup">
+      <div class="eyebrow">Inven Clear</div>
+      <h1 class="title">No인장 가리기</h1>
+      <p class="desc">글쓴이 칸에 인증 아이콘이 없는 글을 숨깁니다.</p>
+      <label class="toggle" for="hideBadgeToggle">
+        <span class="toggle-copy">
+          <span class="toggle-title">기능 켜기</span>
+          <span class="toggle-sub">적용 게시판: maple, lostark, aion2</span>
+        </span>
+        <span class="switch">
+          <input id="hideBadgeToggle" type="checkbox">
+          <span class="slider" aria-hidden="true"></span>
+        </span>
+      </label>
+      <p class="status" id="statusText">설정을 불러오는 중입니다.</p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -16,8 +16,12 @@
       "48": "img/icons/icon48.png",
       "128": "img/icons/icon128.png"
     },
-    "default_title": "Inven Clear"
+    "default_title": "Inven Clear",
+    "default_popup": "popup.html"
   },
+  "permissions": [
+    "storage"
+  ],
   "content_scripts": [
     {
       "matches": [
@@ -26,6 +30,7 @@
       "js": [
         "shared/util.js",
         "shared/table.js",
+        "features/badgeFilter.js",
         "features/posts.js",
         "features/comments.js",
         "content.js"
