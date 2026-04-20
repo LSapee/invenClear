@@ -4,6 +4,9 @@
   const invenClear = global.InvenClear || (global.InvenClear = {});
   const { getArticleId } = invenClear.table;
   const { sleep, truncate } = invenClear.util;
+  const COMMENT_ROOT_SELECTOR = '#cmt, #powerbbsCmt2, .commentContainer, [id^="pwbbsCmt_"]';
+  const COMMENT_ROW_SELECTOR =
+    'li.row[id^="cmt"], li.dice[id^="cmt"], li[id^="cmt"]';
 
   async function fetchMyComments(boardSlug, comeIdx, articleId, opts = {}) {
     const url = `/board/${boardSlug}/${comeIdx}/${articleId}?my=opi`;
@@ -20,6 +23,7 @@
 
   function loadCommentsViaIframe(url, opts = {}) {
     const { timeoutMs = 45000, maxTries = 120 } = opts;
+    const expandSettleMs = 1800;
 
     return new Promise((resolve, reject) => {
       const iframe = document.createElement('iframe');
@@ -47,6 +51,53 @@
         let stableTicks = 0;
         let lastExpandClickAt = 0;
         const expandClickCounts = new Map();
+        let pendingExpand = null;
+
+        function getCollapsedHeaders(doc) {
+          return Array.from(doc.querySelectorAll('h3.title678SL1.pointer')).filter((header) => {
+            if (header.classList.contains('cmtListOpen')) return false;
+
+            const titleNum = Number(header.getAttribute('data-titlenum') || '0');
+            if (!Number.isFinite(titleNum) || titleNum < 100) return false;
+
+            const text = (header.textContent || '').replace(/\s+/g, ' ').trim();
+            if (!text.includes('보기')) return false;
+
+            const key = String(titleNum);
+            if ((expandClickCounts.get(key) || 0) >= 3) return false;
+
+            return true;
+          });
+        }
+
+        function isCommentLoading(cmtBody) {
+          if (!cmtBody) return false;
+
+          const text = (cmtBody.textContent || '').replace(/\s+/g, ' ').trim();
+          return (
+            text.includes('코멘트 로딩중입니다') ||
+            text.includes('코멘트 로딩 중입니다') ||
+            text.includes('댓글 로딩중입니다') ||
+            text.includes('댓글 로딩 중입니다')
+          );
+        }
+
+        function clickCollapsedHeader(win, header) {
+          const jq = win && (win.jQuery || win.$);
+          if (jq && typeof jq === 'function') {
+            jq(header).trigger('click');
+            return;
+          }
+
+          if (typeof header.click === 'function') {
+            header.click();
+            return;
+          }
+
+          header.dispatchEvent(
+            new MouseEvent('click', { bubbles: true, cancelable: true, view: win || iframe.contentWindow })
+          );
+        }
 
         const poll = setInterval(() => {
           tries++;
@@ -66,8 +117,82 @@
 
           if (!doc) return;
 
-          const rows = Array.from(doc.querySelectorAll('li.row[id^="cmt"]'));
-          const cmtBody = doc.querySelector('#cmt, #powerbbsCmt2, .commentContainer');
+          const cmtBody = doc.querySelector(COMMENT_ROOT_SELECTOR);
+          const rows = cmtBody
+            ? Array.from(cmtBody.querySelectorAll(COMMENT_ROW_SELECTOR))
+            : Array.from(doc.querySelectorAll(COMMENT_ROW_SELECTOR));
+          const collapsedHeaders = getCollapsedHeaders(doc);
+
+          if (pendingExpand) {
+            const loading = isCommentLoading(cmtBody);
+            const elapsed = Date.now() - pendingExpand.clickedAt;
+            const currentHeader = doc.querySelector(
+              `h3.title678SL1.pointer[data-titlenum="${pendingExpand.titleNum}"]`
+            );
+            const rowCountIncreased = rows.length > pendingExpand.rowCountBefore;
+            const bodyLengthChanged =
+              !!cmtBody && Math.abs(cmtBody.innerHTML.length - pendingExpand.bodyLengthBefore) > 20;
+            const headerIsOpen = !!(
+              currentHeader && currentHeader.classList.contains('cmtListOpen')
+            );
+
+            if (loading) pendingExpand.sawLoading = true;
+            if (headerIsOpen) pendingExpand.sawOpen = true;
+
+            const expandFinished =
+              elapsed >= expandSettleMs &&
+              pendingExpand.sawOpen &&
+              !loading &&
+              (rowCountIncreased || bodyLengthChanged || pendingExpand.sawLoading);
+
+            if (!expandFinished) {
+              if (elapsed > 5000 && !pendingExpand.retried) {
+                if (currentHeader && !currentHeader.classList.contains('cmtListOpen')) {
+                  clickCollapsedHeader(iframe.contentWindow, currentHeader);
+                  pendingExpand.retried = true;
+                  pendingExpand.clickedAt = Date.now();
+                  lastExpandClickAt = pendingExpand.clickedAt;
+                }
+              }
+              lastRowCount = 0;
+              stableTicks = 0;
+              return;
+            }
+
+            pendingExpand = null;
+          }
+
+          if (collapsedHeaders.length > 0 && Date.now() - lastExpandClickAt > expandSettleMs) {
+            const header = collapsedHeaders[0];
+            const titleNum = String(header.getAttribute('data-titlenum') || '');
+            clickCollapsedHeader(iframe.contentWindow, header);
+            expandClickCounts.set(titleNum, (expandClickCounts.get(titleNum) || 0) + 1);
+            lastExpandClickAt = Date.now();
+            pendingExpand = {
+              titleNum,
+              rowCountBefore: rows.length,
+              bodyLengthBefore: cmtBody ? cmtBody.innerHTML.length : 0,
+              clickedAt: lastExpandClickAt,
+              sawLoading: false,
+              sawOpen: header.classList.contains('cmtListOpen'),
+              retried: false,
+            };
+            lastRowCount = 0;
+            stableTicks = 0;
+            return;
+          }
+
+          if (lastExpandClickAt > 0 && Date.now() - lastExpandClickAt < expandSettleMs) {
+            lastRowCount = 0;
+            stableTicks = 0;
+            return;
+          }
+
+          if (isCommentLoading(cmtBody)) {
+            lastRowCount = 0;
+            stableTicks = 0;
+            return;
+          }
 
           if (rows.length === lastRowCount) {
             stableTicks++;
