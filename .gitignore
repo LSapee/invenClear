@@ -2,3 +2,4 @@
 *.zip
 .idea/
 node_modules/
+docs/
