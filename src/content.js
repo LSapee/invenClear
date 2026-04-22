@@ -8,6 +8,10 @@
     invenClear.features.badgeFilter.initBadgeFilter();
   }
 
+  if (invenClear.features.diceFinder) {
+    invenClear.features.diceFinder.initDiceFinder();
+  }
+
   const context = invenClear.table.getPageContext();
   if (!context) return;
   if (context.table.dataset.invenClear === 'true') return;

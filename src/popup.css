@@ -13,6 +13,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   width: 320px;
   margin: 0;
@@ -38,6 +42,20 @@ body {
   margin: 0;
   font-size: 22px;
   line-height: 1.1;
+}
+
+.section-title {
+  margin: 16px 0 6px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.section-title-tools {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 
 .desc {
@@ -154,4 +172,132 @@ body {
 
 .status-sub {
   margin-top: 6px;
+}
+
+.dice-section {
+  margin-top: 0;
+}
+
+.dice-panel {
+  margin-top: 10px;
+  padding-left: 10px;
+  border-left: 2px solid rgba(219, 38, 7, 0.14);
+}
+
+.dice-time-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.dice-time-row label,
+.dice-input-row {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dice-time-row select,
+.dice-input-row input {
+  width: 100%;
+  padding: 8px 9px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+}
+
+.dice-mode-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.dice-mode-button,
+.dice-back-button,
+.dice-confirm-button {
+  border: 0;
+  border-radius: 11px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+}
+
+.dice-mode-button {
+  min-height: 42px;
+  padding: 9px;
+  background: #fff3e9;
+  color: #3b2a1e;
+}
+
+.dice-mode-button:hover {
+  background: var(--accent-soft);
+}
+
+.dice-help {
+  margin: 8px 2px 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.dice-workspace {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.dice-back-button {
+  margin-bottom: 10px;
+  padding: 7px 10px;
+  background: transparent;
+  color: var(--accent);
+}
+
+.dice-confirm-button {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  background: #2d241d;
+  color: #fff;
+}
+
+.dice-result {
+  margin-top: 10px;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.dice-result-title {
+  font-weight: 800;
+}
+
+.dice-result-list {
+  margin: 6px 0 0;
+  padding-left: 16px;
+}
+
+.dice-result-list li + li {
+  margin-top: 4px;
+}
+
+.dice-result-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.dice-result-link:hover {
+  text-decoration: underline;
 }

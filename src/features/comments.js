@@ -3,7 +3,8 @@
 
   const invenClear = global.InvenClear || (global.InvenClear = {});
   const { getArticleId } = invenClear.table;
-  const { sleep, truncate } = invenClear.util;
+  const { clickElement, getCollapsedCommentHeaders, isCommentLoading, sleep, truncate } =
+    invenClear.util;
   const COMMENT_ROOT_SELECTOR = '#cmt, #powerbbsCmt2, .commentContainer, [id^="pwbbsCmt_"]';
   const COMMENT_ROW_SELECTOR =
     'li.row[id^="cmt"], li.dice[id^="cmt"], li[id^="cmt"]';
@@ -54,49 +55,12 @@
         let pendingExpand = null;
 
         function getCollapsedHeaders(doc) {
-          return Array.from(doc.querySelectorAll('h3.title678SL1.pointer')).filter((header) => {
-            if (header.classList.contains('cmtListOpen')) return false;
-
-            const titleNum = Number(header.getAttribute('data-titlenum') || '0');
-            if (!Number.isFinite(titleNum) || titleNum < 100) return false;
-
-            const text = (header.textContent || '').replace(/\s+/g, ' ').trim();
-            if (!text.includes('보기')) return false;
-
-            const key = String(titleNum);
-            if ((expandClickCounts.get(key) || 0) >= 3) return false;
-
-            return true;
+          return getCollapsedCommentHeaders(doc, {
+            shouldSkip(header, titleNum) {
+              const key = String(titleNum);
+              return (expandClickCounts.get(key) || 0) >= 3;
+            },
           });
-        }
-
-        function isCommentLoading(cmtBody) {
-          if (!cmtBody) return false;
-
-          const text = (cmtBody.textContent || '').replace(/\s+/g, ' ').trim();
-          return (
-            text.includes('코멘트 로딩중입니다') ||
-            text.includes('코멘트 로딩 중입니다') ||
-            text.includes('댓글 로딩중입니다') ||
-            text.includes('댓글 로딩 중입니다')
-          );
-        }
-
-        function clickCollapsedHeader(win, header) {
-          const jq = win && (win.jQuery || win.$);
-          if (jq && typeof jq === 'function') {
-            jq(header).trigger('click');
-            return;
-          }
-
-          if (typeof header.click === 'function') {
-            header.click();
-            return;
-          }
-
-          header.dispatchEvent(
-            new MouseEvent('click', { bubbles: true, cancelable: true, view: win || iframe.contentWindow })
-          );
         }
 
         const poll = setInterval(() => {
@@ -148,7 +112,7 @@
             if (!expandFinished) {
               if (elapsed > 5000 && !pendingExpand.retried) {
                 if (currentHeader && !currentHeader.classList.contains('cmtListOpen')) {
-                  clickCollapsedHeader(iframe.contentWindow, currentHeader);
+                  clickElement(currentHeader, iframe.contentWindow);
                   pendingExpand.retried = true;
                   pendingExpand.clickedAt = Date.now();
                   lastExpandClickAt = pendingExpand.clickedAt;
@@ -165,7 +129,7 @@
           if (collapsedHeaders.length > 0 && Date.now() - lastExpandClickAt > expandSettleMs) {
             const header = collapsedHeaders[0];
             const titleNum = String(header.getAttribute('data-titlenum') || '');
-            clickCollapsedHeader(iframe.contentWindow, header);
+            clickElement(header, iframe.contentWindow);
             expandClickCounts.set(titleNum, (expandClickCounts.get(titleNum) || 0) + 1);
             lastExpandClickAt = Date.now();
             pendingExpand = {
@@ -498,7 +462,13 @@
         }
         await sleep(300 + Math.random() * 1300);
       }
-      progressEl.textContent = `완료 — 성공 ${done}건, 실패 ${failed}건. 잠시 후 새로고침합니다.`;
+      if (failed > 0) {
+        progressEl.textContent = `완료 — 성공 ${done}건, 실패 ${failed}건. 실패 항목을 확인한 뒤 필요하면 새로고침해 주세요.`;
+        updateState();
+        return;
+      }
+
+      progressEl.textContent = `완료 — 성공 ${done}건, 실패 0건. 잠시 후 새로고침합니다.`;
       setTimeout(() => location.reload(), 1500);
     });
 

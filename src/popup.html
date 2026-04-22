@@ -9,7 +9,8 @@
   <body>
     <main class="popup">
       <div class="eyebrow">Inven Clear</div>
-      <h1 class="title">No인장 가리기</h1>
+      <h1 class="title">Inven Clear</h1>
+      <h2 class="section-title">필터</h2>
       <p class="desc">메인 토글을 켜면 인증 아이콘이 없는 항목을 숨기고, 아래에서 게시글과 댓글 대상을 따로 조절할 수 있습니다.</p>
       <label class="toggle" for="hideNoBadgeEnabled">
         <span class="toggle-copy">
@@ -42,10 +43,76 @@
             <span class="slider" aria-hidden="true"></span>
           </span>
         </label>
+        <label class="toggle toggle-subitem" for="excludeRecommendedNoBadgePosts">
+          <span class="toggle-copy">
+            <span class="toggle-title">10추글 제외</span>
+            <span class="toggle-sub">추천 10 이상이면 No인장이어도 게시글 표시</span>
+          </span>
+          <span class="switch switch-small">
+            <input id="excludeRecommendedNoBadgePosts" type="checkbox">
+            <span class="slider" aria-hidden="true"></span>
+          </span>
+        </label>
       </section>
       <p class="status" id="statusText">설정을 불러오는 중입니다.</p>
       <p class="status status-sub">적용 게시판: maple, lostark, aion2</p>
+      <h2 class="section-title section-title-tools">도구</h2>
+      <section class="dice-section">
+        <label class="toggle" for="diceFinderEnabled">
+          <span class="toggle-copy">
+            <span class="toggle-title">주사위 찾기</span>
+            <span class="toggle-sub">현재 글의 /주사위 댓글에서 결과를 찾습니다.</span>
+          </span>
+          <span class="switch">
+            <input id="diceFinderEnabled" type="checkbox">
+            <span class="slider" aria-hidden="true"></span>
+          </span>
+        </label>
+        <div class="dice-panel" id="dicePanel" hidden>
+          <label class="toggle toggle-subitem" for="diceDeadlineEnabled">
+            <span class="toggle-copy">
+              <span class="toggle-title">마감 시간 지정</span>
+              <span class="toggle-sub">선택한 시간 이후 댓글은 제외</span>
+            </span>
+            <span class="switch switch-small">
+              <input id="diceDeadlineEnabled" type="checkbox">
+              <span class="slider" aria-hidden="true"></span>
+            </span>
+          </label>
+          <div class="dice-time-row" id="diceTimeRow" hidden>
+            <label>
+              시간
+              <select id="diceHourSelect"></select>
+            </label>
+            <label>
+              분
+              <select id="diceMinuteSelect"></select>
+            </label>
+          </div>
+          <div class="dice-mode-grid" id="diceModeGrid">
+            <button type="button" class="dice-mode-button" data-mode="number">숫자로 찾기</button>
+            <button type="button" class="dice-mode-button" data-mode="max">가장 큰 수 찾기</button>
+            <button type="button" class="dice-mode-button" data-mode="min">가장 작은 수 찾기</button>
+            <button type="button" class="dice-mode-button" data-mode="nthMax">N번째로 큰 수 찾기</button>
+          </div>
+          <p class="dice-help">마감 시간은 당일 댓글 시간 기준입니다. N번째로 큰 수는 동일 숫자를 같은 순위로 처리합니다.</p>
+          <div class="dice-workspace" id="diceWorkspace" hidden>
+            <button type="button" class="dice-back-button" id="diceBackButton">다른 방식 선택</button>
+            <label class="dice-input-row" id="diceNumberInputRow" hidden>
+              찾을 숫자
+              <input id="diceNumberInput" type="number" min="1" max="100" inputmode="numeric">
+            </label>
+            <label class="dice-input-row" id="diceRankInputRow" hidden>
+              몇 번째
+              <input id="diceRankInput" type="number" min="1" inputmode="numeric">
+            </label>
+            <button type="button" class="dice-confirm-button" id="diceConfirmButton">확인</button>
+            <div class="dice-result" id="diceResult" aria-live="polite"></div>
+          </div>
+        </div>
+      </section>
     </main>
+    <script src="shared/config.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

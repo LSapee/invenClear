@@ -94,3 +94,9 @@ tr.ic-badge-hidden {
 li.ic-badge-hidden {
   display: none !important;
 }
+
+.ic-dice-scroll-target {
+  outline: 3px solid #db2607;
+  outline-offset: 3px;
+  background: #fff1e8 !important;
+}
