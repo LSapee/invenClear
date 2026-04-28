@@ -170,6 +170,9 @@
         return;
       }
 
+      if (row.classList.contains('ic-opi-expand')) return;
+      if (!row.querySelector('td.tit')) return;
+
       const keepRecommendedPost = shouldKeepRecommendedPost(row);
       if (keepRecommendedPost) rememberRecommendedArticleId(getArticleIdFromRow(row));
 
