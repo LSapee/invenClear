@@ -411,12 +411,25 @@
         let done = 0;
         progressEl.textContent = `조회 중 ${done} / ${targets.length}`;
 
-        for (const { tr, articleId, btn } of targets) {
-          await loadArticleComments(tr, articleId, btn);
-          done++;
-          progressEl.textContent = `조회 중 ${done} / ${targets.length}`;
-        }
+        const concurrency = 1 + Math.floor(Math.random() * 3);
+        let cursor = 0;
+        const workers = Array.from(
+          { length: Math.min(concurrency, targets.length) },
+          async () => {
+            while (true) {
+              const current = cursor++;
+              if (current >= targets.length) return;
 
+              const { tr, articleId, btn } = targets[current];
+              await loadArticleComments(tr, articleId, btn);
+              done++;
+              progressEl.textContent = `조회 중 ${done} / ${targets.length}`;
+              await sleep(200 + Math.random() * 800);
+            }
+          }
+        );
+
+        await Promise.all(workers);
         progressEl.textContent = `조회 완료 — ${done}건`;
         batchButtons.forEach((b) => (b.disabled = false));
       });
@@ -460,7 +473,7 @@
           if (li) li.classList.add('ic-row-failed');
           console.error('[InvenClear] 삭제 실패', cmtidx, error);
         }
-        await sleep(300 + Math.random() * 1300);
+        await sleep(200 + Math.random() * 800);
       }
       if (failed > 0) {
         progressEl.textContent = `완료 — 성공 ${done}건, 실패 ${failed}건. 실패 항목을 확인한 뒤 필요하면 새로고침해 주세요.`;
