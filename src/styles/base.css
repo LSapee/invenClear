@@ -108,9 +108,41 @@ li.ic-badge-hidden {
   border: 1px solid #dfe3e8;
   border-radius: 3px;
   background: #f9fafc;
-  color: #db2607;
-  font-size: 11px;
+  color: #686868;
+  font-size: 13px;
   font-weight: 700;
   line-height: 1.4;
   vertical-align: middle;
+}
+
+.ic-combat-power[data-power-tier='1'] {
+  color: #a63eef;
+}
+
+.ic-combat-power[data-power-tier='2'] {
+  color: #f2a500;
+}
+
+.ic-combat-power[data-power-tier='3'] {
+  color: #85bd00;
+}
+
+.ic-combat-power[data-power-tier='4'] {
+  color: #ff3333;
+}
+
+.ic-combat-power[data-power-tier='5'] {
+  background-image: linear-gradient(
+    -45deg,
+    #fdb931 0%,
+    #5d4a1f 20%,
+    #fdb931 40%,
+    #5d4a1f 60%,
+    #fdb931 80%,
+    #5d4a1f 100%
+  );
+  background-clip: text;
+  color: #fdb931;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }

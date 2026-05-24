@@ -80,6 +80,33 @@
     return `+${withoutTrailingPlus}`;
   }
 
+  function getPowerValue(label) {
+    if (!label) return 0;
+
+    const normalized = label.replace(/^[+-]/, '');
+    const billionMatch = normalized.match(/(\d+(?:\.\d+)?)억/);
+    const tenMillionMatch = normalized.match(/(\d+(?:\.\d+)?)천만/);
+
+    const billion = billionMatch ? Number(billionMatch[1]) * 100000000 : 0;
+    const tenMillion = tenMillionMatch ? Number(tenMillionMatch[1]) * 10000000 : 0;
+
+    if (billion || tenMillion) return billion + tenMillion;
+
+    const numeric = Number(normalized.replace(/[^\d.]/g, ''));
+    return Number.isFinite(numeric) ? numeric : 0;
+  }
+
+  function getPowerTier(label) {
+    const power = getPowerValue(label);
+
+    if (power >= 500000000) return '5';
+    if (power >= 400000000) return '4';
+    if (power >= 300000000) return '3';
+    if (power >= 200000000) return '2';
+    if (power >= 100000000) return '1';
+    return '0';
+  }
+
   function parseCombatPowerFromRoot(root) {
     const powerElement = root.querySelector('.info-power .power');
     return powerElement ? normalizePowerLabel(powerElement.textContent) : null;
@@ -214,6 +241,7 @@
     }
 
     powerElement.textContent = `전투력 : ${label}`;
+    powerElement.dataset.powerTier = getPowerTier(label);
 
     if (target === nicknameElement) {
       nicknameElement.appendChild(powerElement);
