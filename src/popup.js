@@ -7,6 +7,7 @@
   const postToggle = document.getElementById('hideNoBadgePosts');
   const commentToggle = document.getElementById('hideNoBadgeComments');
   const excludeRecommendedToggle = document.getElementById('excludeRecommendedNoBadgePosts');
+  const combatPowerToggle = document.getElementById('showCombatPower');
   const statusText = document.getElementById('statusText');
   const diceFinderToggle = document.getElementById('diceFinderEnabled');
   const dicePanel = document.getElementById('dicePanel');
@@ -79,6 +80,12 @@
         setStatus(masterEnabled, postsEnabled, commentsEnabled, excludeRecommendedEnabled);
       }
     );
+  }
+
+  function persistCombatPowerSetting() {
+    chrome.storage.sync.set({
+      [STORAGE_KEYS.showCombatPower]: combatPowerToggle.checked,
+    });
   }
 
   function fillSelect(select, max, step = 1) {
@@ -248,6 +255,7 @@
       [STORAGE_KEYS.hideNoBadgePosts]: true,
       [STORAGE_KEYS.hideNoBadgeComments]: true,
       [STORAGE_KEYS.excludeRecommendedNoBadgePosts]: false,
+      [STORAGE_KEYS.showCombatPower]: false,
     },
     (items) => {
       const masterEnabled = items[STORAGE_KEYS.hideNoBadgeEnabled] === true;
@@ -259,6 +267,7 @@
       postToggle.checked = postsEnabled;
       commentToggle.checked = commentsEnabled;
       excludeRecommendedToggle.checked = excludeRecommendedEnabled;
+      combatPowerToggle.checked = items[STORAGE_KEYS.showCombatPower] === true;
       setStatus(masterEnabled, postsEnabled, commentsEnabled, excludeRecommendedEnabled);
     }
   );
@@ -276,6 +285,7 @@
   postToggle.addEventListener('change', persistSettings);
   commentToggle.addEventListener('change', persistSettings);
   excludeRecommendedToggle.addEventListener('change', persistSettings);
+  combatPowerToggle.addEventListener('change', persistCombatPowerSetting);
   initDiceTimeSelects();
   diceFinderToggle.addEventListener('change', () => {
     dicePanel.hidden = !diceFinderToggle.checked;
@@ -329,6 +339,10 @@
         changes[STORAGE_KEYS.excludeRecommendedNoBadgePosts].newValue === true;
       excludeRecommendedToggle.checked = excludeRecommendedEnabled;
       changed = true;
+    }
+
+    if (changes[STORAGE_KEYS.showCombatPower]) {
+      combatPowerToggle.checked = changes[STORAGE_KEYS.showCombatPower].newValue === true;
     }
 
     if (changed) {

@@ -170,6 +170,10 @@ body {
   font-size: 12px;
 }
 
+.combat-toggle {
+  margin-top: 10px;
+}
+
 .status-sub {
   margin-top: 6px;
 }

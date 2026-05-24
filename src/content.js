@@ -8,6 +8,10 @@
     invenClear.features.badgeFilter.initBadgeFilter();
   }
 
+  if (invenClear.features.combatPower) {
+    invenClear.features.combatPower.initCombatPower();
+  }
+
   if (invenClear.features.diceFinder) {
     invenClear.features.diceFinder.initDiceFinder();
   }
