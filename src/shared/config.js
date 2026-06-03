@@ -12,6 +12,8 @@
       hideNoBadgeComments: 'hideNoBadgeComments',
       excludeRecommendedNoBadgePosts: 'excludeRecommendedNoBadgePosts',
       showCombatPower: 'showCombatPower',
+      hideBelowCombatPowerEnabled: 'hideBelowCombatPowerEnabled',
+      hideBelowCombatPowerThreshold: 'hideBelowCombatPowerThreshold',
     },
   };
 })(globalThis);

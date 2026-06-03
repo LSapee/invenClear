@@ -8,6 +8,9 @@
   const commentToggle = document.getElementById('hideNoBadgeComments');
   const excludeRecommendedToggle = document.getElementById('excludeRecommendedNoBadgePosts');
   const combatPowerToggle = document.getElementById('showCombatPower');
+  const combatPowerPanel = document.getElementById('combatPowerPanel');
+  const combatPowerHideBelowToggle = document.getElementById('hideBelowCombatPowerEnabled');
+  const combatPowerThresholdSelect = document.getElementById('hideBelowCombatPowerThreshold');
   const statusText = document.getElementById('statusText');
   const diceFinderToggle = document.getElementById('diceFinderEnabled');
   const dicePanel = document.getElementById('dicePanel');
@@ -26,6 +29,8 @@
   const diceResult = document.getElementById('diceResult');
   let selectedDiceMode = null;
   let lastDiceTabId = null;
+  const COMBAT_POWER_STEP = 50000000;
+  const COMBAT_POWER_MAX = 1000000000;
 
   function syncSubToggleState(masterEnabled) {
     postToggle.disabled = !masterEnabled;
@@ -85,7 +90,37 @@
   function persistCombatPowerSetting() {
     chrome.storage.sync.set({
       [STORAGE_KEYS.showCombatPower]: combatPowerToggle.checked,
+      [STORAGE_KEYS.hideBelowCombatPowerEnabled]: combatPowerHideBelowToggle.checked,
+      [STORAGE_KEYS.hideBelowCombatPowerThreshold]: Number(combatPowerThresholdSelect.value),
     });
+  }
+
+  function formatCombatPowerThreshold(value) {
+    const eok = Math.floor(value / 100000000);
+    const remainder = value % 100000000;
+    const cheonman = remainder / 10000000;
+
+    if (eok === 0) return `${cheonman}천만`;
+    if (remainder === 0) return `${eok}억`;
+    return `${eok}억${cheonman}천만`;
+  }
+
+  function initCombatPowerThresholdSelect() {
+    for (let value = COMBAT_POWER_STEP; value <= COMBAT_POWER_MAX; value += COMBAT_POWER_STEP) {
+      const option = document.createElement('option');
+      option.value = String(value);
+      option.textContent = formatCombatPowerThreshold(value);
+      combatPowerThresholdSelect.appendChild(option);
+    }
+  }
+
+  function syncCombatPowerPanel() {
+    const combatPowerEnabled = combatPowerToggle.checked;
+    const hideBelowEnabled = combatPowerHideBelowToggle.checked;
+
+    combatPowerPanel.hidden = !combatPowerEnabled;
+    combatPowerHideBelowToggle.disabled = !combatPowerEnabled;
+    combatPowerThresholdSelect.disabled = !combatPowerEnabled || !hideBelowEnabled;
   }
 
   function fillSelect(select, max, step = 1) {
@@ -249,6 +284,8 @@
     );
   }
 
+  initCombatPowerThresholdSelect();
+
   chrome.storage.sync.get(
     {
       [STORAGE_KEYS.hideNoBadgeEnabled]: false,
@@ -256,6 +293,8 @@
       [STORAGE_KEYS.hideNoBadgeComments]: true,
       [STORAGE_KEYS.excludeRecommendedNoBadgePosts]: false,
       [STORAGE_KEYS.showCombatPower]: false,
+      [STORAGE_KEYS.hideBelowCombatPowerEnabled]: false,
+      [STORAGE_KEYS.hideBelowCombatPowerThreshold]: COMBAT_POWER_STEP,
     },
     (items) => {
       const masterEnabled = items[STORAGE_KEYS.hideNoBadgeEnabled] === true;
@@ -268,6 +307,12 @@
       commentToggle.checked = commentsEnabled;
       excludeRecommendedToggle.checked = excludeRecommendedEnabled;
       combatPowerToggle.checked = items[STORAGE_KEYS.showCombatPower] === true;
+      combatPowerHideBelowToggle.checked =
+        items[STORAGE_KEYS.hideBelowCombatPowerEnabled] === true;
+      combatPowerThresholdSelect.value = String(
+        items[STORAGE_KEYS.hideBelowCombatPowerThreshold] || COMBAT_POWER_STEP
+      );
+      syncCombatPowerPanel();
       setStatus(masterEnabled, postsEnabled, commentsEnabled, excludeRecommendedEnabled);
     }
   );
@@ -285,7 +330,15 @@
   postToggle.addEventListener('change', persistSettings);
   commentToggle.addEventListener('change', persistSettings);
   excludeRecommendedToggle.addEventListener('change', persistSettings);
-  combatPowerToggle.addEventListener('change', persistCombatPowerSetting);
+  combatPowerToggle.addEventListener('change', () => {
+    syncCombatPowerPanel();
+    persistCombatPowerSetting();
+  });
+  combatPowerHideBelowToggle.addEventListener('change', () => {
+    syncCombatPowerPanel();
+    persistCombatPowerSetting();
+  });
+  combatPowerThresholdSelect.addEventListener('change', persistCombatPowerSetting);
   initDiceTimeSelects();
   diceFinderToggle.addEventListener('change', () => {
     dicePanel.hidden = !diceFinderToggle.checked;
@@ -343,6 +396,19 @@
 
     if (changes[STORAGE_KEYS.showCombatPower]) {
       combatPowerToggle.checked = changes[STORAGE_KEYS.showCombatPower].newValue === true;
+      syncCombatPowerPanel();
+    }
+
+    if (changes[STORAGE_KEYS.hideBelowCombatPowerEnabled]) {
+      combatPowerHideBelowToggle.checked =
+        changes[STORAGE_KEYS.hideBelowCombatPowerEnabled].newValue === true;
+      syncCombatPowerPanel();
+    }
+
+    if (changes[STORAGE_KEYS.hideBelowCombatPowerThreshold]) {
+      combatPowerThresholdSelect.value = String(
+        changes[STORAGE_KEYS.hideBelowCombatPowerThreshold].newValue || COMBAT_POWER_STEP
+      );
     }
 
     if (changed) {
