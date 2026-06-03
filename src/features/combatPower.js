@@ -8,7 +8,6 @@
   const COMMENT_ITEM_SELECTOR = 'li[id^="cmt"]';
   const COMBAT_POWER_CLASS = 'ic-combat-power';
   const FETCH_CONCURRENCY = 3;
-  const INVENTORY_TIMEOUT_MS = 12000;
 
   let enabled = false;
   let observer = null;
@@ -107,99 +106,98 @@
     return '0';
   }
 
-  function parseCombatPowerFromRoot(root) {
-    const powerElement = root.querySelector('.info-power .power');
-    return powerElement ? normalizePowerLabel(powerElement.textContent) : null;
-  }
+  async function fetchGameProfilePower(memid, memnick) {
+    const formData = new FormData();
 
-  function clickGameProfileTab(doc, win) {
-    const button =
-      doc.querySelector('button[data-id="game_profile"]') ||
-      Array.from(doc.querySelectorAll('button')).find((candidate) =>
-        (candidate.textContent || '').includes('메이플 프로필')
-      );
-    if (!button || button.classList.contains('active')) return;
+    formData.append('mode', 'view');
+    formData.append('game', 'maple');
+    formData.append('memid', memid);
+    formData.append('memnick', memnick);
 
-    const clickElement = invenClear.util && invenClear.util.clickElement;
-    if (typeof clickElement === 'function') {
-      clickElement(button, win);
-      return;
+    const response = await fetch(
+      '/common/gameprofile/index.php',
+      {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
     }
 
-    button.click();
+    const data = await response.json();
+
+    return normalizePowerLabel(
+      data?.profileData?.total_power
+    );
   }
 
-  function loadCombatPowerFromInventory(url) {
-    return new Promise((resolve) => {
-      const iframe = document.createElement('iframe');
-      iframe.style.cssText =
-        'position:absolute;left:-9999px;top:0;width:900px;height:700px;border:0;visibility:hidden';
-      iframe.setAttribute('aria-hidden', 'true');
-      iframe.src = url;
+  async function fetchInventoryInfo(nickname) {
+    const url =
+      `/member/inventory/view_inventory.php?nick=${encodeURIComponent(nickname)}&site=maple`;
 
-      let settled = false;
-      let poll = null;
-
-      const cleanup = () => {
-        if (poll) clearInterval(poll);
-        if (iframe.parentNode) iframe.remove();
-      };
-
-      const finish = (label) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeout);
-        cleanup();
-        resolve(label);
-      };
-
-      const timeout = setTimeout(() => {
-        finish(null);
-      }, INVENTORY_TIMEOUT_MS);
-
-      iframe.addEventListener('load', () => {
-        let clickedProfileTab = false;
-
-        poll = setInterval(() => {
-          let doc;
-          try {
-            doc = iframe.contentDocument;
-          } catch {
-            finish(null);
-            return;
-          }
-
-          if (!doc) return;
-
-          const label = parseCombatPowerFromRoot(doc);
-          if (label) {
-            finish(label);
-            return;
-          }
-
-          if (!clickedProfileTab) {
-            clickGameProfileTab(doc, iframe.contentWindow);
-            clickedProfileTab = true;
-          }
-        }, 250);
-      });
-
-      document.body.appendChild(iframe);
+    const response = await fetch(url, {
+      credentials: 'include',
     });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const html = await response.text();
+
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+
+    const skinRoot =
+      doc.querySelector('#inventory-skin-800');
+
+    if (!skinRoot) {
+      throw new Error('inventory-skin-800 없음');
+    }
+
+    const commonDataRaw =
+      skinRoot.getAttribute('data-common-data');
+
+    if (!commonDataRaw) {
+      throw new Error('data-common-data 없음');
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = commonDataRaw;
+
+    const commonData =
+      JSON.parse(textarea.value);
+
+    return {
+      memid: commonData.uniqueMemberCode,
+      memnick: commonData.m_nicname,
+    };
   }
 
-  function runNextFetch() {
-    if (activeFetches >= FETCH_CONCURRENCY || fetchQueue.length === 0) return;
+  async function fetchCombatPowerDirect(nickname) {
+    const { memid, memnick } =
+      await fetchInventoryInfo(nickname);
 
-    const next = fetchQueue.shift();
-    activeFetches++;
-    next()
-      .catch(() => {})
-      .finally(() => {
-        activeFetches--;
-        runNextFetch();
-      });
+    return fetchGameProfilePower(
+      memid,
+      memnick
+    );
   }
+
+    function runNextFetch() {
+      if (activeFetches >= FETCH_CONCURRENCY || fetchQueue.length === 0) return;
+
+      const next = fetchQueue.shift();
+      activeFetches++;
+      next()
+        .catch(() => {})
+        .finally(() => {
+          activeFetches--;
+          runNextFetch();
+        });
+    }
 
   function enqueueFetch(task) {
     return new Promise((resolve) => {
@@ -209,13 +207,18 @@
   }
 
   function fetchCombatPower(nickname) {
-    if (powerCache.has(nickname)) return powerCache.get(nickname);
+    if (powerCache.has(nickname)) {
+      return powerCache.get(nickname);
+    }
 
-    const url = `/member/inventory/view_inventory.php?nick=${encodeURIComponent(nickname)}&site=maple`;
     const promise = enqueueFetch(() =>
-      loadCombatPowerFromInventory(url)
+      fetchCombatPowerDirect(nickname)
         .catch((error) => {
-          console.error('[InvenClear] 전투력 조회 실패', nickname, error);
+          console.error(
+            '[InvenClear] 전투력 조회 실패',
+            nickname,
+            error
+          );
           return null;
         })
     );
