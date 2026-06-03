@@ -118,8 +118,7 @@
       '/common/gameprofile/index.php',
       {
         method: 'POST',
-        body: formData,
-        credentials: 'include',
+        body: formData
       }
     );
 
@@ -138,9 +137,7 @@
     const url =
       `/member/inventory/view_inventory.php?nick=${encodeURIComponent(nickname)}&site=maple`;
 
-    const response = await fetch(url, {
-      credentials: 'include',
-    });
+    const response = await fetch(url);
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
