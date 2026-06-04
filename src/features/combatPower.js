@@ -7,7 +7,10 @@
   const ALLOWED_BOARDS = new Set(config.allowedCombatPowerBoards || []);
   const COMMENT_ITEM_SELECTOR = 'li[id^="cmt"]';
   const COMBAT_POWER_CLASS = 'ic-combat-power';
+  const ACHIEVEMENT_CLASS = 'ic-combat-achievement';
   const COMBAT_POWER_FILTER_HIDDEN_CLASS = 'ic-combat-power-filter-hidden';
+  const ACHIEVEMENT_ICON_URL =
+    'https://static.inven.co.kr/image_2011/maple/inventory/achievement_icon.png';
   const FETCH_CONCURRENCY = 3;
   const INVENTORY_TIMEOUT_MS = 12000;
   const DEFAULT_HIDE_BELOW_THRESHOLD = 50000000;
@@ -67,7 +70,9 @@
   }
 
   function removeCombatPower(item) {
-    item.querySelectorAll(`.${COMBAT_POWER_CLASS}`).forEach((element) => element.remove());
+    item
+      .querySelectorAll(`.${COMBAT_POWER_CLASS}, .${ACHIEVEMENT_CLASS}`)
+      .forEach((element) => element.remove());
     item.classList.remove(COMBAT_POWER_FILTER_HIDDEN_CLASS);
     delete item.dataset.icCombatPowerNick;
     delete item.dataset.icCombatPowerLoading;
@@ -122,6 +127,38 @@
     return powerElement ? normalizePowerLabel(powerElement.textContent) : null;
   }
 
+  function normalizeAchievementText(value) {
+    return (value || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function parseAchievementFromRoot(root) {
+    const signatureBlocks = Array.from(root.querySelectorAll('.info-signature'));
+    const achievementBlock = signatureBlocks.find((block) =>
+      normalizeAchievementText(block.querySelector('.info-title')?.textContent).includes(
+        '시그니쳐 업적'
+      )
+    );
+
+    if (!achievementBlock) return null;
+
+    const title =
+      normalizeAchievementText(achievementBlock.querySelector('.signature-tooltip h5')?.textContent) ||
+      normalizeAchievementText(achievementBlock.querySelector('.img-text p')?.textContent);
+    const description = normalizeAchievementText(
+      achievementBlock.querySelector('.signature-tooltip p')?.textContent
+    );
+    const iconElement = achievementBlock.querySelector('.img-text img, img.signature-icon');
+    const icon = iconElement?.src || ACHIEVEMENT_ICON_URL;
+
+    if (!title || title === '-') return null;
+
+    return {
+      title,
+      description,
+      icon,
+    };
+  }
+
   function applyCombatPowerFilter(item) {
     const value = Number(item.dataset.icCombatPowerValue || '0');
     const shouldHide =
@@ -163,12 +200,12 @@
         if (iframe.parentNode) iframe.remove();
       };
 
-      const finish = (label) => {
+      const finish = (profile) => {
         if (settled) return;
         settled = true;
         clearTimeout(timeout);
         cleanup();
-        resolve(label);
+        resolve(profile);
       };
 
       const timeout = setTimeout(() => {
@@ -189,9 +226,13 @@
 
           if (!doc) return;
 
-          const label = parseCombatPowerFromRoot(doc);
-          if (label) {
-            finish(label);
+          const profile = {
+            label: parseCombatPowerFromRoot(doc),
+            achievement: parseAchievementFromRoot(doc),
+          };
+
+          if (profile.label) {
+            finish(profile);
             return;
           }
 
@@ -242,7 +283,41 @@
     return promise;
   }
 
-  function renderCombatPower(item, label) {
+  function renderAchievement(item, target, achievement) {
+    item.querySelectorAll(`.${ACHIEVEMENT_CLASS}`).forEach((element) => element.remove());
+    if (!achievement || !achievement.title) return;
+
+    const wrapper = document.createElement('span');
+    wrapper.className = ACHIEVEMENT_CLASS;
+    wrapper.tabIndex = 0;
+    wrapper.setAttribute('role', 'img');
+    wrapper.setAttribute('aria-label', achievement.title);
+
+    const icon = document.createElement('img');
+    icon.className = `${ACHIEVEMENT_CLASS}-icon`;
+    icon.src = achievement.icon || ACHIEVEMENT_ICON_URL;
+    icon.alt = '업적';
+
+    const tooltip = document.createElement('span');
+    tooltip.className = `${ACHIEVEMENT_CLASS}-tooltip`;
+
+    const title = document.createElement('strong');
+    title.textContent = achievement.title;
+    tooltip.appendChild(title);
+
+    if (achievement.description) {
+      const description = document.createElement('span');
+      description.textContent = achievement.description;
+      tooltip.appendChild(description);
+    }
+
+    wrapper.appendChild(icon);
+    wrapper.appendChild(tooltip);
+    target.insertAdjacentElement('afterend', wrapper);
+  }
+
+  function renderCombatPower(item, profile) {
+    const label = profile && profile.label;
     if (!label) return;
 
     const nicknameElement = getNicknameElement(item);
@@ -264,11 +339,13 @@
 
     if (target === nicknameElement) {
       nicknameElement.appendChild(powerElement);
+      renderAchievement(item, powerElement, profile.achievement);
       applyCombatPowerFilter(item);
       return;
     }
 
     target.insertAdjacentElement('afterend', powerElement);
+    renderAchievement(item, powerElement, profile.achievement);
     applyCombatPowerFilter(item);
   }
 
@@ -298,7 +375,7 @@
     }
 
     item.dataset.icCombatPowerLoading = 'true';
-    const label = await fetchCombatPower(nickname);
+    const profile = await fetchCombatPower(nickname);
     delete item.dataset.icCombatPowerLoading;
 
     if (!enabled || !getCommentBadge(item)) {
@@ -306,10 +383,10 @@
       return;
     }
 
-    if (!label) return;
+    if (!profile || !profile.label) return;
 
     item.dataset.icCombatPowerNick = nickname;
-    renderCombatPower(item, label);
+    renderCombatPower(item, profile);
   }
 
   function applyCombatPower() {

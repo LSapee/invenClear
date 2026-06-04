@@ -150,3 +150,65 @@ li.ic-combat-power-filter-hidden {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+.ic-combat-achievement {
+  display: inline-flex;
+  position: relative;
+  align-items: center;
+  margin-left: 3px;
+  vertical-align: middle;
+  outline: none;
+}
+
+.ic-combat-achievement-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.ic-combat-achievement-tooltip {
+  display: none;
+  position: absolute;
+  z-index: 2147483647;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  width: max-content;
+  max-width: 260px;
+  padding: 8px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 6px;
+  background: rgba(32, 32, 32, 0.96);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: left;
+  transform: translateX(-50%);
+  white-space: normal;
+}
+
+.ic-combat-achievement-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  border: 5px solid transparent;
+  border-top-color: rgba(32, 32, 32, 0.96);
+  transform: translateX(-50%);
+}
+
+.ic-combat-achievement-tooltip strong,
+.ic-combat-achievement-tooltip span {
+  display: block;
+}
+
+.ic-combat-achievement-tooltip span {
+  margin-top: 3px;
+  color: #e4e4e4;
+}
+
+.ic-combat-achievement:hover .ic-combat-achievement-tooltip,
+.ic-combat-achievement:focus .ic-combat-achievement-tooltip {
+  display: block;
+}
