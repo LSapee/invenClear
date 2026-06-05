@@ -96,6 +96,7 @@
   function getPowerValue(label) {
     if (!label) return 0;
 
+    const isNegative = label.trim().startsWith('-');
     const normalized = label.replace(/^[+-]/, '');
     const billionMatch = normalized.match(/(\d+(?:\.\d+)?)억/);
     const tenMillionMatch = normalized.match(/(\d+(?:\.\d+)?)천만/);
@@ -105,10 +106,14 @@
     const tenMillion = tenMillionMatch ? Number(tenMillionMatch[1]) * 10000000 : 0;
     const man = manMatch && !tenMillionMatch ? Number(manMatch[1]) * 10000 : 0;
 
-    if (billion || tenMillion || man) return billion + tenMillion + man;
+    if (billion || tenMillion || man) {
+      const value = billion + tenMillion + man;
+      return isNegative ? -value : value;
+    }
 
     const numeric = Number(normalized.replace(/[^\d.]/g, ''));
-    return Number.isFinite(numeric) ? numeric : 0;
+    if (!Number.isFinite(numeric)) return 0;
+    return isNegative ? -numeric : numeric;
   }
 
   function getPowerTier(label) {
@@ -160,9 +165,14 @@
   }
 
   function applyCombatPowerFilter(item) {
-    const value = Number(item.dataset.icCombatPowerValue || '0');
+    const rawValue = item.dataset.icCombatPowerValue;
+    const value = Number(rawValue);
     const shouldHide =
-      enabled && hideBelowEnabled && value > 0 && value < hideBelowThreshold;
+      enabled &&
+      hideBelowEnabled &&
+      rawValue !== undefined &&
+      Number.isFinite(value) &&
+      value < hideBelowThreshold;
 
     item.classList.toggle(COMBAT_POWER_FILTER_HIDDEN_CLASS, shouldHide);
   }
