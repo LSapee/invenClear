@@ -7,6 +7,7 @@
   const ALLOWED_BOARDS = new Set(config.allowedCombatPowerBoards || []);
   const COMMENT_ITEM_SELECTOR = 'li[id^="cmt"]';
   const COMBAT_POWER_CLASS = 'ic-combat-power';
+  const COMBAT_POWER_TOOLTIP_CLASS = 'ic-combat-power-floating-tooltip';
   const ACHIEVEMENT_CLASS = 'ic-combat-achievement';
   const COMBAT_POWER_FILTER_HIDDEN_CLASS = 'ic-combat-power-filter-hidden';
   const ACHIEVEMENT_ICON_URL =
@@ -20,6 +21,8 @@
   let hideBelowThreshold = DEFAULT_HIDE_BELOW_THRESHOLD;
   let observer = null;
   let queued = false;
+  let tooltipElement = null;
+  let tooltipListenersReady = false;
   let activeFetches = 0;
   const powerCache = new Map();
   const fetchQueue = [];
@@ -132,6 +135,22 @@
     return powerElement ? normalizePowerLabel(powerElement.textContent) : null;
   }
 
+  function parseUpdatedAtFromRoot(root) {
+    const warningElement =
+      root.querySelector('.char-info .warning') ||
+      Array.from(root.querySelectorAll('.warning')).find((element) =>
+        (element.textContent || '').includes('갱신일')
+      );
+    const warningText = (warningElement?.textContent || '').replace(/\s+/g, ' ').trim();
+    const text =
+      warningText || (root.body?.textContent || root.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!text) return null;
+
+    const match = text.match(/(?:최근\s*)?갱신일\s*[:：]\s*([0-9]{2,4}[./-][0-9]{1,2}[./-][0-9]{1,2})/);
+    if (match) return `최근 갱신일 : ${match[1].trim()}`;
+    return warningText || null;
+  }
+
   function normalizeAchievementText(value) {
     return (value || '').replace(/\s+/g, ' ').trim();
   }
@@ -224,6 +243,7 @@
 
       iframe.addEventListener('load', () => {
         let clickedProfileTab = false;
+        let powerFoundAt = 0;
 
         poll = setInterval(() => {
           let doc;
@@ -238,10 +258,15 @@
 
           const profile = {
             label: parseCombatPowerFromRoot(doc),
+            updatedAt: parseUpdatedAtFromRoot(doc),
             achievement: parseAchievementFromRoot(doc),
           };
 
-          if (profile.label) {
+          if (profile.label && !powerFoundAt) {
+            powerFoundAt = Date.now();
+          }
+
+          if (profile.label && (profile.updatedAt || Date.now() - powerFoundAt >= 3000)) {
             finish(profile);
             return;
           }
@@ -291,6 +316,68 @@
 
     powerCache.set(nickname, promise);
     return promise;
+  }
+
+  function getCombatPowerTooltip() {
+    if (tooltipElement) return tooltipElement;
+
+    tooltipElement = document.createElement('span');
+    tooltipElement.className = COMBAT_POWER_TOOLTIP_CLASS;
+    document.body.appendChild(tooltipElement);
+    return tooltipElement;
+  }
+
+  function showCombatPowerTooltip(target) {
+    const updatedAt = target.dataset.updatedAt;
+    if (!updatedAt) return;
+
+    const tooltip = getCombatPowerTooltip();
+    tooltip.textContent = updatedAt;
+    tooltip.hidden = false;
+
+    const rect = target.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const margin = 8;
+    const left = Math.min(
+      Math.max(rect.left + rect.width / 2 - tooltipRect.width / 2, margin),
+      window.innerWidth - tooltipRect.width - margin
+    );
+    const top = Math.max(rect.top - tooltipRect.height - 8, margin);
+
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+  }
+
+  function hideCombatPowerTooltip() {
+    if (tooltipElement) tooltipElement.hidden = true;
+  }
+
+  function getCombatPowerTarget(element) {
+    return element && element.closest ? element.closest(`.${COMBAT_POWER_CLASS}`) : null;
+  }
+
+  function ensureTooltipListeners() {
+    if (tooltipListenersReady) return;
+    tooltipListenersReady = true;
+
+    document.addEventListener('mouseover', (event) => {
+      const target = getCombatPowerTarget(event.target);
+      if (target) showCombatPowerTooltip(target);
+    });
+    document.addEventListener('mouseout', (event) => {
+      const target = getCombatPowerTarget(event.target);
+      if (target && !target.contains(event.relatedTarget)) hideCombatPowerTooltip();
+    });
+    document.addEventListener('focusin', (event) => {
+      const target = getCombatPowerTarget(event.target);
+      if (target) showCombatPowerTooltip(target);
+    });
+    document.addEventListener('focusout', (event) => {
+      const target = getCombatPowerTarget(event.target);
+      if (target) hideCombatPowerTooltip();
+    });
+    window.addEventListener('scroll', hideCombatPowerTooltip, true);
+    window.addEventListener('resize', hideCombatPowerTooltip);
   }
 
   function renderAchievement(item, target, achievement) {
@@ -344,6 +431,15 @@
     }
 
     powerElement.textContent = `전투력 : ${label}`;
+    if (profile.updatedAt) {
+      powerElement.tabIndex = 0;
+      powerElement.dataset.updatedAt = profile.updatedAt;
+      powerElement.setAttribute('aria-label', `전투력 : ${label}, ${profile.updatedAt}`);
+    } else {
+      powerElement.removeAttribute('tabindex');
+      delete powerElement.dataset.updatedAt;
+      powerElement.removeAttribute('aria-label');
+    }
     powerElement.dataset.powerTier = getPowerTier(label);
     item.dataset.icCombatPowerValue = String(getPowerValue(label));
 
@@ -453,6 +549,7 @@
   function initCombatPower() {
     if (!isSupportedBoard()) return;
     if (!global.chrome || !chrome.storage || !chrome.storage.sync) return;
+    ensureTooltipListeners();
 
     chrome.storage.sync.get(
       {
