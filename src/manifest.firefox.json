@@ -1,0 +1,64 @@
+{
+  "manifest_version": 2,
+  "name": "Inven Clear",
+  "version": "0.3.6",
+  "description": "인벤 '내 글/내 댓글' 목록에서 체크박스로 여러 글을 한 번에 삭제합니다.",
+  "icons": {
+    "16": "img/icons/icon16.png",
+    "32": "img/icons/icon32.png",
+    "48": "img/icons/icon48.png",
+    "128": "img/icons/icon128.png"
+  },
+  "browser_action": {
+    "default_icon": {
+      "16": "img/icons/icon16.png",
+      "32": "img/icons/icon32.png",
+      "48": "img/icons/icon48.png",
+      "128": "img/icons/icon128.png"
+    },
+    "default_title": "Inven Clear",
+    "default_popup": "popup.html"
+  },
+  "permissions": [
+    "storage",
+    "https://maple.inven.co.kr/*",
+    "https://www.inven.co.kr/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.inven.co.kr/board/*",
+        "https://maple.inven.co.kr/*"
+      ],
+      "js": [
+        "shared/config.js",
+        "shared/util.js",
+        "shared/table.js",
+        "features/badgeFilter.js",
+        "features/combatPower.js",
+        "features/hiddenCommentCounter.js",
+        "features/diceFinder.js",
+        "features/posts.js",
+        "features/comments.js",
+        "content.js"
+      ],
+      "css": [
+        "styles/base.css",
+        "styles/posts.css",
+        "styles/comments.css"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "inven-clear@example.com",
+      "strict_min_version": "109.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  }
+}
