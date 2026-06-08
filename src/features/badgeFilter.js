@@ -45,7 +45,10 @@
     const recoCell = row.querySelector('td.reco');
     if (!recoCell) return 0;
 
-    const value = (recoCell.textContent || '').replace(/[^\d-]/g, '');
+    const clonedCell = recoCell.cloneNode(true);
+    clonedCell.querySelectorAll('.ic-dislike-count').forEach((element) => element.remove());
+
+    const value = (clonedCell.textContent || '').replace(/[^\d-]/g, '');
     const count = Number(value);
     return Number.isFinite(count) ? count : 0;
   }

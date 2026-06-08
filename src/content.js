@@ -20,6 +20,10 @@
     invenClear.features.diceFinder.initDiceFinder();
   }
 
+  if (invenClear.features.dislikeCount) {
+    invenClear.features.dislikeCount.initDislikeCount();
+  }
+
   const context = invenClear.table.getPageContext();
   if (!context) return;
   if (context.table.dataset.invenClear === 'true') return;

@@ -99,6 +99,22 @@ li.ic-combat-power-filter-hidden {
   display: none !important;
 }
 
+td.reco.ic-reco-with-dislike {
+  white-space: nowrap;
+}
+
+.ic-recommend-count {
+  color: #C44747;
+}
+
+.ic-dislike-count {
+  display: inline;
+  color: #4288C8;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .ic-hidden-comment-counter {
   float: left;
   min-width: 180px;
