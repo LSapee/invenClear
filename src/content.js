@@ -12,6 +12,10 @@
     invenClear.features.combatPower.initCombatPower();
   }
 
+  if (invenClear.features.hiddenCommentCounter) {
+    invenClear.features.hiddenCommentCounter.initHiddenCommentCounter();
+  }
+
   if (invenClear.features.diceFinder) {
     invenClear.features.diceFinder.initDiceFinder();
   }
