@@ -77,7 +77,13 @@
 
       if (!response.ok) return null;
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        return null;
+      }
+
       if (!Array.isArray(data.bad)) return 0;
       return data.bad.length;
     });
