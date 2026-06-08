@@ -135,6 +135,11 @@
     return powerElement ? normalizePowerLabel(powerElement.textContent) : null;
   }
 
+  function isInvalidInventoryAccess(root) {
+    const text = (root.body?.textContent || root.textContent || '').replace(/\s+/g, ' ').trim();
+    return text.includes('잘못된 접근입니다') || text.includes('잘못된 접근');
+  }
+
   function parseUpdatedAtFromRoot(root) {
     const warningElement =
       root.querySelector('.char-info .warning') ||
@@ -219,6 +224,7 @@
       iframe.style.cssText =
         'position:absolute;left:-9999px;top:0;width:900px;height:700px;border:0;visibility:hidden';
       iframe.setAttribute('aria-hidden', 'true');
+      iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-forms');
       iframe.src = url;
 
       let settled = false;
@@ -255,6 +261,11 @@
           }
 
           if (!doc) return;
+
+          if (isInvalidInventoryAccess(doc)) {
+            finish(null);
+            return;
+          }
 
           const profile = {
             label: parseCombatPowerFromRoot(doc),
