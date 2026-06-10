@@ -6,6 +6,8 @@
   const STORAGE_KEYS = config.storageKeys || {};
   const ALLOWED_BOARDS = new Set(config.allowedBadgeFilterBoards || []);
   const COMMENT_ITEM_SELECTOR = 'li[id^="cmt"]';
+  const BADGE_HIDDEN_CLASS = 'ic-badge-hidden';
+  const COMBAT_POWER_HIDDEN_CLASS = 'ic-combat-power-filter-hidden';
   const RECOMMENDED_ARTICLE_IDS_KEY = 'invenClearRecommendedArticleIds';
 
   let masterEnabled = false;
@@ -30,19 +32,31 @@
     return !!(boardSlug && ALLOWED_BOARDS.has(boardSlug));
   }
 
+  function isMobileInven() {
+    return location.hostname === 'm.inven.co.kr';
+  }
+
   function getListTable() {
     return invenClear.table && typeof invenClear.table.findListTable === 'function'
       ? invenClear.table.findListTable()
       : null;
   }
 
-  function hasMapleBadge(row) {
-    const userCell = row.querySelector('td.user');
-    return !!(userCell && userCell.querySelector('img.maple'));
+  function getMobilePostRows() {
+    if (!isMobileInven()) return [];
+
+    return Array.from(document.querySelectorAll('li.list')).filter((row) => {
+      const link = row.querySelector('a.contentLink[href*="/board/"]');
+      return !!(link && row.querySelector('.user_info'));
+    });
+  }
+
+  function hasPostBadge(row) {
+    return !!row.querySelector('td.user img.maple, .user_info .nick img.maple');
   }
 
   function getRecommendationCount(row) {
-    const recoCell = row.querySelector('td.reco');
+    const recoCell = row.querySelector('td.reco, .user_info .reco');
     if (!recoCell) return 0;
 
     const clonedCell = recoCell.cloneNode(true);
@@ -54,7 +68,7 @@
   }
 
   function getArticleIdFromRow(row) {
-    const link = row.querySelector('td.tit a.subject-link');
+    const link = row.querySelector('td.tit a.subject-link, a.contentLink');
     const href = link ? link.getAttribute('href') || '' : '';
     const match = href.match(/\/board\/[^/]+\/\d+\/(\d+)/);
     return match ? match[1] : null;
@@ -163,30 +177,38 @@
     return getArticleRecommendationCount() >= 10;
   }
 
-  function applyPostFilter() {
-    const table = getListTable();
-    if (!table) return;
+  function setBadgeHidden(element, hidden) {
+    element.classList.toggle(BADGE_HIDDEN_CLASS, hidden);
+    element.hidden =
+      element.classList.contains(BADGE_HIDDEN_CLASS) ||
+      element.classList.contains(COMBAT_POWER_HIDDEN_CLASS);
+  }
 
-    table.querySelectorAll('tbody tr').forEach((row) => {
+  function applyPostFilterToRows(rows) {
+    rows.forEach((row) => {
       if (row.classList.contains('notice')) {
-        row.classList.remove('ic-badge-hidden');
+        setBadgeHidden(row, false);
         return;
       }
 
       if (row.classList.contains('ic-opi-expand')) return;
-      if (!row.querySelector('td.tit')) return;
+      if (!row.querySelector('td.tit, a.contentLink')) return;
 
       const keepRecommendedPost = shouldKeepRecommendedPost(row);
       if (keepRecommendedPost) rememberRecommendedArticleId(getArticleIdFromRow(row));
 
-      row.classList.toggle(
-        'ic-badge-hidden',
-        masterEnabled &&
-          postFilterEnabled &&
-          !hasMapleBadge(row) &&
-          !keepRecommendedPost
+      setBadgeHidden(
+        row,
+        masterEnabled && postFilterEnabled && !hasPostBadge(row) && !keepRecommendedPost
       );
     });
+  }
+
+  function applyPostFilter() {
+    const table = getListTable();
+    if (table) applyPostFilterToRows(Array.from(table.querySelectorAll('tbody tr')));
+
+    applyPostFilterToRows(getMobilePostRows());
   }
 
   function hasCommentBadge(item) {
@@ -197,8 +219,8 @@
     const showAllComments = masterEnabled && shouldShowAllCommentsForRecommendedArticle();
 
     document.querySelectorAll(COMMENT_ITEM_SELECTOR).forEach((item) => {
-      item.classList.toggle(
-        'ic-badge-hidden',
+      setBadgeHidden(
+        item,
         masterEnabled && commentFilterEnabled && !showAllComments && !hasCommentBadge(item)
       );
     });
@@ -241,9 +263,15 @@
 
   function initBadgeFilter() {
     if (!isSupportedBoard()) return;
-    if (!global.chrome || !chrome.storage || !chrome.storage.sync) return;
+    const storageArea =
+      config && typeof config.getStorageArea === 'function' ? config.getStorageArea() : null;
+    const storageAreaName =
+      config && typeof config.getStorageAreaName === 'function'
+        ? config.getStorageAreaName()
+        : 'sync';
+    if (!storageArea) return;
 
-    chrome.storage.sync.get(
+    storageArea.get(
       {
         [STORAGE_KEYS.hideNoBadgeEnabled]: false,
         [STORAGE_KEYS.hideNoBadgePosts]: true,
@@ -261,7 +289,7 @@
     );
 
     chrome.storage.onChanged.addListener((changes, areaName) => {
-      if (areaName !== 'sync') return;
+      if (areaName !== storageAreaName) return;
 
       const nextSettings = {};
       let hasRelevantChange = false;

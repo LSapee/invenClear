@@ -9,12 +9,15 @@
   const COMBAT_POWER_CLASS = 'ic-combat-power';
   const COMBAT_POWER_TOOLTIP_CLASS = 'ic-combat-power-floating-tooltip';
   const ACHIEVEMENT_CLASS = 'ic-combat-achievement';
+  const BADGE_HIDDEN_CLASS = 'ic-badge-hidden';
   const COMBAT_POWER_FILTER_HIDDEN_CLASS = 'ic-combat-power-filter-hidden';
   const ACHIEVEMENT_ICON_URL =
     'https://static.inven.co.kr/image_2011/maple/inventory/achievement_icon.png';
+  const GAME_PROFILE_ENDPOINT = 'https://www.inven.co.kr/common/gameprofile/index.php';
   const FETCH_CONCURRENCY = 3;
   const INVENTORY_TIMEOUT_MS = 12000;
   const DEFAULT_HIDE_BELOW_THRESHOLD = 50000000;
+  const INVENTORY_MESSAGE_SOURCE = 'InvenClearCombatPowerInventory';
 
   let enabled = false;
   let hideBelowEnabled = false;
@@ -25,6 +28,7 @@
   let tooltipListenersReady = false;
   let activeFetches = 0;
   const powerCache = new Map();
+  const mobileMemIdCache = new Map();
   const fetchQueue = [];
 
   function getBoardSlug() {
@@ -39,8 +43,48 @@
     return document.title.includes('메이플스토리 인벤');
   }
 
+  function isMobileInven() {
+    return location.hostname === 'm.inven.co.kr';
+  }
+
   function getNicknameElement(item) {
     return item.querySelector('.nickname');
+  }
+
+  function getMobilePostRows() {
+    if (!isMobileInven()) return [];
+
+    return Array.from(document.querySelectorAll('li.list')).filter((row) => {
+      const link = row.querySelector('a.contentLink[href*="/board/"]');
+      return !!(link && row.querySelector('.user_info .nick'));
+    });
+  }
+
+  function getMobilePostNicknameElement(row) {
+    return row.querySelector('.user_info .nick');
+  }
+
+  function getMobilePostNicknameContainer(row) {
+    return row.querySelector('.user_info .nick .layerNickName') || getMobilePostNicknameElement(row);
+  }
+
+  function getMobilePostBadge(row) {
+    return row.querySelector('.user_info .nick img.maple');
+  }
+
+  function getMobilePostNickname(row) {
+    const nicknameElement = getMobilePostNicknameElement(row);
+    if (!nicknameElement) return '';
+
+    const onclick = nicknameElement.getAttribute('onclick') || '';
+    const onclickMatch = onclick.match(/layerNickName\('([^']+)'/);
+    if (onclickMatch) return onclickMatch[1].trim();
+
+    const container = getMobilePostNicknameContainer(row);
+    const textNode = Array.from(container.childNodes).find(
+      (node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim()
+    );
+    return textNode ? textNode.textContent.trim() : container.textContent.trim();
   }
 
   function getInventoryNickFromLink(nicknameElement) {
@@ -76,7 +120,7 @@
     item
       .querySelectorAll(`.${COMBAT_POWER_CLASS}, .${ACHIEVEMENT_CLASS}`)
       .forEach((element) => element.remove());
-    item.classList.remove(COMBAT_POWER_FILTER_HIDDEN_CLASS);
+    setCombatPowerHidden(item, false);
     delete item.dataset.icCombatPowerNick;
     delete item.dataset.icCombatPowerLoading;
     delete item.dataset.icCombatPowerValue;
@@ -86,14 +130,12 @@
     const text = (value || '').replace(/\s+/g, '').trim();
     if (!text || text === '-') return null;
 
-    if (text.endsWith('-')) return `-${text.slice(0, -1)}`;
-
-    const withoutTrailingPlus = text.endsWith('+') ? text.slice(0, -1) : text;
-    if (!withoutTrailingPlus) return null;
-    if (withoutTrailingPlus.startsWith('-') || withoutTrailingPlus.startsWith('+')) {
-      return withoutTrailingPlus;
+    if (text.endsWith('-') || text.endsWith('+')) {
+      const amount = text.slice(0, -1);
+      return amount ? `${text.slice(-1)}${amount}` : null;
     }
-    return `+${withoutTrailingPlus}`;
+
+    return text;
   }
 
   function getPowerValue(label) {
@@ -132,7 +174,19 @@
 
   function parseCombatPowerFromRoot(root) {
     const powerElement = root.querySelector('.info-power .power');
-    return powerElement ? normalizePowerLabel(powerElement.textContent) : null;
+    return powerElement
+      ? normalizePowerLabel(powerElement.textContent)
+      : parseCombatPowerFromText(root.body?.textContent || root.textContent || '');
+  }
+
+  function parseCombatPowerFromText(value) {
+    const text = (value || '').replace(/\s+/g, ' ').trim();
+    if (!text) return null;
+
+    const match = text.match(
+      /전투력\s*[:：]?\s*([+-]?\s*\d+(?:\.\d+)?\s*(?:억|천만|만)(?:\s*\d+(?:\.\d+)?\s*(?:천만|만))?\s*[+-]?|[+-]?\s*\d+\s*[+-]?)/
+    );
+    return match ? normalizePowerLabel(match[1]) : null;
   }
 
   function isInvalidInventoryAccess(root) {
@@ -198,7 +252,14 @@
       Number.isFinite(value) &&
       value < hideBelowThreshold;
 
-    item.classList.toggle(COMBAT_POWER_FILTER_HIDDEN_CLASS, shouldHide);
+    setCombatPowerHidden(item, shouldHide);
+  }
+
+  function setCombatPowerHidden(item, hidden) {
+    item.classList.toggle(COMBAT_POWER_FILTER_HIDDEN_CLASS, hidden);
+    item.hidden =
+      item.classList.contains(BADGE_HIDDEN_CLASS) ||
+      item.classList.contains(COMBAT_POWER_FILTER_HIDDEN_CLASS);
   }
 
   function clickGameProfileTab(doc, win) {
@@ -221,17 +282,22 @@
   function loadCombatPowerFromInventory(url) {
     return new Promise((resolve) => {
       const iframe = document.createElement('iframe');
+      const requestId = `${Date.now()}:${Math.random().toString(36).slice(2)}`;
+      const inventoryUrl = new URL(url);
+      inventoryUrl.searchParams.set('icCombatPowerRequestId', requestId);
+
       iframe.style.cssText =
         'position:absolute;left:-9999px;top:0;width:900px;height:700px;border:0;visibility:hidden';
       iframe.setAttribute('aria-hidden', 'true');
       iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-forms');
-      iframe.src = url;
+      iframe.src = inventoryUrl.toString();
 
       let settled = false;
       let poll = null;
 
       const cleanup = () => {
         if (poll) clearInterval(poll);
+        window.removeEventListener('message', handleInventoryMessage);
         if (iframe.parentNode) iframe.remove();
       };
 
@@ -247,6 +313,22 @@
         finish(null);
       }, INVENTORY_TIMEOUT_MS);
 
+      function handleInventoryMessage(event) {
+        const message = event.data;
+        if (
+          !message ||
+          event.source !== iframe.contentWindow ||
+          message.source !== INVENTORY_MESSAGE_SOURCE ||
+          message.requestId !== requestId
+        ) {
+          return;
+        }
+
+        finish(message.profile || null);
+      }
+
+      window.addEventListener('message', handleInventoryMessage);
+
       iframe.addEventListener('load', () => {
         let clickedProfileTab = false;
         let powerFoundAt = 0;
@@ -256,7 +338,7 @@
           try {
             doc = iframe.contentDocument;
           } catch {
-            finish(null);
+            // Cross-origin mobile pages rely on the inventory frame helper postMessage path.
             return;
           }
 
@@ -313,17 +395,195 @@
     });
   }
 
+  function getMobileInventoryUrl(nickname) {
+    return `https://www.inven.co.kr/member/inventory/view_inventory.php?nick=${encodeURIComponent(nickname)}&isMobile=true&site=maple`;
+  }
+
+  function parseMobileMemId(html) {
+    const patterns = [
+      /&quot;uniqueMemberCode&quot;\s*:\s*&quot;([^&]+)&quot;/i,
+      /"uniqueMemberCode"\s*:\s*"([^"]+)"/i,
+      /name=["']memid["'][^>]*value=["']([^"']+)["']/i,
+      /["']memid["']\s*:\s*["']([^"']+)["']/i,
+      /memid\s*[:=]\s*["']([^"']+)["']/i,
+      /append\(\s*["']memid["']\s*,\s*["']([^"']+)["']\s*\)/i,
+    ];
+
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match && match[1]) return match[1].trim();
+    }
+
+    return null;
+  }
+
+  async function fetchMobileMemId(nickname) {
+    if (mobileMemIdCache.has(nickname)) return mobileMemIdCache.get(nickname);
+
+    const promise = fetch(getMobileInventoryUrl(nickname), {
+      credentials: 'include',
+    })
+      .then((response) => (response.ok ? response.text() : ''))
+      .then(parseMobileMemId)
+      .catch(() => null);
+
+    mobileMemIdCache.set(nickname, promise);
+    return promise;
+  }
+
+  function findValueByKeys(value, keys, depth = 0) {
+    if (!value || depth > 8) return null;
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const found = findValueByKeys(item, keys, depth + 1);
+        if (found !== null) return found;
+      }
+      return null;
+    }
+
+    if (typeof value !== 'object') return null;
+
+    for (const [key, item] of Object.entries(value)) {
+      if (keys.includes(key) && (typeof item === 'string' || typeof item === 'number')) {
+        return String(item);
+      }
+    }
+
+    for (const item of Object.values(value)) {
+      const found = findValueByKeys(item, keys, depth + 1);
+      if (found !== null) return found;
+    }
+
+    return null;
+  }
+
+  function parseProfileFromHtml(html) {
+    if (!html) return null;
+
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const profile = {
+      label: parseCombatPowerFromRoot(doc),
+      updatedAt: parseUpdatedAtFromRoot(doc),
+      achievement: parseAchievementFromRoot(doc),
+    };
+
+    return profile.label ? profile : null;
+  }
+
+  function parseMobileProfileResponse(data) {
+    if (!data) return null;
+
+    if (typeof data === 'string') {
+      try {
+        return parseMobileProfileResponse(JSON.parse(data));
+      } catch {
+        return parseProfileFromHtml(data);
+      }
+    }
+
+    const html = findValueByKeys(data, ['html', 'contents', 'content', 'view', 'profile']);
+    const htmlProfile = html ? parseProfileFromHtml(html) : null;
+    if (htmlProfile) return htmlProfile;
+
+    const powerText =
+      findValueByKeys(data, [
+        'power',
+        'combatPower',
+        'combat_power',
+        'combatpower',
+        'statPower',
+        'stat_power',
+        'total_power',
+        'totalPower',
+      ]) || parseCombatPowerFromText(JSON.stringify(data));
+    const label = normalizePowerLabel(powerText);
+
+    if (!label) return null;
+
+    return {
+      label,
+      updatedAt: formatUpdatedAt(
+        findValueByKeys(data, ['updatedAt', 'updated_at', 'updateDate', 'update_date'])
+      ),
+      achievement: null,
+    };
+  }
+
+  function formatUpdatedAt(value) {
+    const text = (value || '').trim();
+    return text ? `최근 갱신일 : ${text}` : null;
+  }
+
+  async function fetchCombatPowerViaMobileProfile(nickname) {
+    const backgroundProfile = await fetchCombatPowerViaBackground(nickname);
+    if (backgroundProfile) return backgroundProfile;
+
+    const memid = await fetchMobileMemId(nickname);
+    if (!memid) return null;
+
+    const body = new FormData();
+    body.append('mode', 'view');
+    body.append('game', 'maple');
+    body.append('memid', memid);
+    body.append('memnick', nickname);
+
+    const response = await fetch(GAME_PROFILE_ENDPOINT, {
+      method: 'POST',
+      body,
+      credentials: 'include',
+    });
+    if (!response.ok) return null;
+
+    const text = await response.text();
+    try {
+      return parseMobileProfileResponse(JSON.parse(text));
+    } catch {
+      return parseMobileProfileResponse(text);
+    }
+  }
+
+  function fetchCombatPowerViaBackground(nickname) {
+    return new Promise((resolve) => {
+      if (!global.chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
+        resolve(null);
+        return;
+      }
+
+      chrome.runtime.sendMessage(
+        {
+          type: 'INVEN_CLEAR_FETCH_MOBILE_COMBAT_POWER',
+          nickname,
+        },
+        (response) => {
+          if (chrome.runtime.lastError || !response || response.ok !== true) {
+            resolve(null);
+            return;
+          }
+
+          resolve(response.profile || null);
+        }
+      );
+    });
+  }
+
   function fetchCombatPower(nickname) {
     if (powerCache.has(nickname)) return powerCache.get(nickname);
 
-    const url = `https://www.inven.co.kr/member/inventory/view_inventory.php?nick=${encodeURIComponent(nickname)}&site=maple`;
-    const promise = enqueueFetch(() =>
-      loadCombatPowerFromInventory(url)
-        .catch((error) => {
-          console.error('[InvenClear] 전투력 조회 실패', nickname, error);
+    const promise = enqueueFetch(() => {
+      if (isMobileInven()) {
+        return fetchCombatPowerViaMobileProfile(nickname).catch((error) => {
+          console.error('[InvenClear] 모바일 전투력 조회 실패', nickname, error);
           return null;
-        })
-    );
+        });
+      }
+
+      const url = `https://www.inven.co.kr/member/inventory/view_inventory.php?nick=${encodeURIComponent(nickname)}&site=maple`;
+      return loadCombatPowerFromInventory(url).catch((error) => {
+        console.error('[InvenClear] 전투력 조회 실패', nickname, error);
+        return null;
+      });
+    });
 
     powerCache.set(nickname, promise);
     return promise;
@@ -424,22 +684,42 @@
     target.insertAdjacentElement('afterend', wrapper);
   }
 
-  function renderCombatPower(item, profile) {
-    const label = profile && profile.label;
-    if (!label) return;
-
-    const nicknameElement = getNicknameElement(item);
-    const badge = getCommentBadge(item);
-    const target = badge && nicknameElement && nicknameElement.contains(badge)
-      ? badge
-      : nicknameElement;
-    if (!target) return;
-
+  function getOrCreateCombatPowerElement(item) {
     let powerElement = item.querySelector(`.${COMBAT_POWER_CLASS}`);
     if (!powerElement) {
       powerElement = document.createElement('span');
       powerElement.className = COMBAT_POWER_CLASS;
     }
+    return powerElement;
+  }
+
+  function renderCombatPowerLoadingAtTarget(item, target, options = {}) {
+    const { appendToTarget = false } = options;
+    if (!target) return;
+
+    const powerElement = getOrCreateCombatPowerElement(item);
+    powerElement.textContent = '전투력 : 조회중';
+    powerElement.dataset.powerTier = '0';
+    powerElement.removeAttribute('tabindex');
+    delete powerElement.dataset.updatedAt;
+    powerElement.removeAttribute('aria-label');
+    delete item.dataset.icCombatPowerValue;
+
+    if (appendToTarget) {
+      target.appendChild(powerElement);
+      return;
+    }
+
+    target.insertAdjacentElement('afterend', powerElement);
+  }
+
+  function renderCombatPowerAtTarget(item, target, profile, options = {}) {
+    const { appendToTarget = false, showAchievement = true } = options;
+    const label = normalizePowerLabel(profile && profile.label);
+    if (!label) return;
+    if (!target) return;
+
+    const powerElement = getOrCreateCombatPowerElement(item);
 
     powerElement.textContent = `전투력 : ${label}`;
     if (profile.updatedAt) {
@@ -454,16 +734,71 @@
     powerElement.dataset.powerTier = getPowerTier(label);
     item.dataset.icCombatPowerValue = String(getPowerValue(label));
 
-    if (target === nicknameElement) {
-      nicknameElement.appendChild(powerElement);
-      renderAchievement(item, powerElement, profile.achievement);
+    if (appendToTarget) {
+      target.appendChild(powerElement);
+      if (showAchievement) renderAchievement(item, powerElement, profile.achievement);
       applyCombatPowerFilter(item);
       return;
     }
 
     target.insertAdjacentElement('afterend', powerElement);
-    renderAchievement(item, powerElement, profile.achievement);
+    if (showAchievement) renderAchievement(item, powerElement, profile.achievement);
     applyCombatPowerFilter(item);
+  }
+
+  function renderCombatPower(item, profile) {
+    const nicknameElement = getNicknameElement(item);
+    if (isMobileInven()) {
+      renderCombatPowerAtTarget(item, nicknameElement, profile, {
+        appendToTarget: false,
+        showAchievement: false,
+      });
+      return;
+    }
+
+    const badge = getCommentBadge(item);
+    const target = badge && nicknameElement && nicknameElement.contains(badge)
+      ? badge
+      : nicknameElement;
+    renderCombatPowerAtTarget(item, target, profile, {
+      appendToTarget: target === nicknameElement,
+      showAchievement: !isMobileInven(),
+    });
+  }
+
+  function renderMobileCommentCombatPowerLoading(item) {
+    renderCombatPowerLoadingAtTarget(item, getNicknameElement(item), {
+      appendToTarget: false,
+    });
+  }
+
+  function getZeroCombatPowerProfile() {
+    return {
+      label: '0',
+      updatedAt: null,
+      achievement: null,
+    };
+  }
+
+  function renderMobilePostCombatPower(row, profile) {
+    const badge = getMobilePostBadge(row);
+    const nicknameContainer = getMobilePostNicknameContainer(row);
+    const target = badge || nicknameContainer;
+
+    renderCombatPowerAtTarget(row, target, profile, {
+      appendToTarget: target === nicknameContainer,
+      showAchievement: false,
+    });
+  }
+
+  function renderMobilePostCombatPowerLoading(row) {
+    const badge = getMobilePostBadge(row);
+    const nicknameContainer = getMobilePostNicknameContainer(row);
+    const target = badge || nicknameContainer;
+
+    renderCombatPowerLoadingAtTarget(row, target, {
+      appendToTarget: target === nicknameContainer,
+    });
   }
 
   async function applyCombatPowerToComment(item) {
@@ -491,6 +826,8 @@
       return;
     }
 
+    if (isMobileInven()) renderMobileCommentCombatPowerLoading(item);
+
     item.dataset.icCombatPowerLoading = 'true';
     const profile = await fetchCombatPower(nickname);
     delete item.dataset.icCombatPowerLoading;
@@ -500,10 +837,62 @@
       return;
     }
 
-    if (!profile || !profile.label) return;
+    if (!profile || !profile.label) {
+      if (!isMobileInven()) return;
+
+      item.dataset.icCombatPowerNick = nickname;
+      renderCombatPower(item, getZeroCombatPowerProfile());
+      return;
+    }
 
     item.dataset.icCombatPowerNick = nickname;
     renderCombatPower(item, profile);
+  }
+
+  async function applyCombatPowerToMobilePost(row) {
+    if (!enabled) {
+      removeCombatPower(row);
+      return;
+    }
+
+    if (!getMobilePostBadge(row)) {
+      removeCombatPower(row);
+      return;
+    }
+
+    const nickname = getMobilePostNickname(row);
+    if (!nickname) {
+      removeCombatPower(row);
+      return;
+    }
+
+    if (
+      row.dataset.icCombatPowerNick === nickname ||
+      row.dataset.icCombatPowerLoading === 'true'
+    ) {
+      applyCombatPowerFilter(row);
+      return;
+    }
+
+    renderMobilePostCombatPowerLoading(row);
+
+    row.dataset.icCombatPowerLoading = 'true';
+    const profile = await fetchCombatPower(nickname);
+    delete row.dataset.icCombatPowerLoading;
+
+    if (!enabled || !getMobilePostBadge(row)) {
+      removeCombatPower(row);
+      return;
+    }
+
+    if (!profile || !profile.label) {
+      row.dataset.icCombatPowerNick = nickname;
+      renderMobilePostCombatPower(row, getZeroCombatPowerProfile());
+      return;
+    }
+
+    row.dataset.icCombatPowerNick = nickname;
+    renderMobilePostCombatPower(row, profile);
   }
 
   function applyCombatPower() {
@@ -512,10 +901,15 @@
     document.querySelectorAll(COMMENT_ITEM_SELECTOR).forEach((item) => {
       applyCombatPowerToComment(item);
     });
+
+    getMobilePostRows().forEach((row) => {
+      applyCombatPowerToMobilePost(row);
+    });
   }
 
   function clearCombatPower() {
     document.querySelectorAll(COMMENT_ITEM_SELECTOR).forEach(removeCombatPower);
+    getMobilePostRows().forEach(removeCombatPower);
   }
 
   function queueApply() {
@@ -559,10 +953,16 @@
 
   function initCombatPower() {
     if (!isSupportedBoard()) return;
-    if (!global.chrome || !chrome.storage || !chrome.storage.sync) return;
+    const storageArea =
+      config && typeof config.getStorageArea === 'function' ? config.getStorageArea() : null;
+    const storageAreaName =
+      config && typeof config.getStorageAreaName === 'function'
+        ? config.getStorageAreaName()
+        : 'sync';
+    if (!storageArea) return;
     ensureTooltipListeners();
 
-    chrome.storage.sync.get(
+    storageArea.get(
       {
         [STORAGE_KEYS.showCombatPower]: false,
         [STORAGE_KEYS.hideBelowCombatPowerEnabled]: false,
@@ -580,7 +980,7 @@
     );
 
     chrome.storage.onChanged.addListener((changes, areaName) => {
-      if (areaName !== 'sync') return;
+      if (areaName !== storageAreaName) return;
 
       const nextSettings = {};
       let hasRelevantChange = false;

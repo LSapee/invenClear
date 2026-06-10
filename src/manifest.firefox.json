@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Inven Clear",
-  "version": "0.3.8",
+  "version": "0.4.0",
   "description": "인벤 '내 글/내 댓글' 목록에서 체크박스로 여러 글을 한 번에 삭제합니다.",
   "icons": {
     "16": "img/icons/icon16.png",
@@ -19,8 +19,14 @@
     "default_title": "Inven Clear",
     "default_popup": "popup.html"
   },
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
   "permissions": [
     "storage",
+    "https://m.inven.co.kr/*",
     "https://maple.inven.co.kr/*",
     "https://www.inven.co.kr/*"
   ],
@@ -28,6 +34,7 @@
     {
       "matches": [
         "https://www.inven.co.kr/board/*",
+        "https://m.inven.co.kr/board/*",
         "https://maple.inven.co.kr/*"
       ],
       "js": [
@@ -49,6 +56,17 @@
         "styles/comments.css"
       ],
       "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "https://www.inven.co.kr/member/inventory/*"
+      ],
+      "js": [
+        "shared/util.js",
+        "features/combatPowerInventoryFrame.js"
+      ],
+      "run_at": "document_end",
+      "all_frames": true
     }
   ],
   "browser_specific_settings": {
@@ -60,6 +78,7 @@
           "none"
         ]
       }
-    }
+    },
+    "gecko_android": {}
   }
 }

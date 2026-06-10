@@ -1,7 +1,12 @@
 (function () {
   'use strict';
 
-  const STORAGE_KEYS = globalThis.InvenClear.config.storageKeys;
+  const config = globalThis.InvenClear.config;
+  const STORAGE_KEYS = config.storageKeys;
+  const storageArea =
+    typeof config.getStorageArea === 'function' ? config.getStorageArea() : chrome.storage.sync;
+  const storageAreaName =
+    typeof config.getStorageAreaName === 'function' ? config.getStorageAreaName() : 'sync';
 
   const masterToggle = document.getElementById('hideNoBadgeEnabled');
   const postToggle = document.getElementById('hideNoBadgePosts');
@@ -74,7 +79,7 @@
     const commentsEnabled = commentToggle.checked;
     const excludeRecommendedEnabled = excludeRecommendedToggle.checked;
 
-    chrome.storage.sync.set(
+    storageArea.set(
       {
         [STORAGE_KEYS.hideNoBadgeEnabled]: masterEnabled,
         [STORAGE_KEYS.hideNoBadgePosts]: postsEnabled,
@@ -88,7 +93,7 @@
   }
 
   function persistCombatPowerSetting() {
-    chrome.storage.sync.set({
+    storageArea.set({
       [STORAGE_KEYS.showCombatPower]: combatPowerToggle.checked,
       [STORAGE_KEYS.hideBelowCombatPowerEnabled]: combatPowerHideBelowToggle.checked,
       [STORAGE_KEYS.hideBelowCombatPowerThreshold]: Number(combatPowerThresholdSelect.value),
@@ -288,7 +293,7 @@
 
   initCombatPowerThresholdSelect();
 
-  chrome.storage.sync.get(
+  storageArea.get(
     {
       [STORAGE_KEYS.hideNoBadgeEnabled]: false,
       [STORAGE_KEYS.hideNoBadgePosts]: true,
@@ -363,7 +368,7 @@
   });
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== 'sync') return;
+    if (areaName !== storageAreaName) return;
 
     let masterEnabled = masterToggle.checked;
     let postsEnabled = postToggle.checked;

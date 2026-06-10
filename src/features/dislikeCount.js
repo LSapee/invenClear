@@ -17,8 +17,21 @@
       : null;
   }
 
+  function isMobileInven() {
+    return location.hostname === 'm.inven.co.kr';
+  }
+
+  function getMobilePostRows() {
+    if (!isMobileInven()) return [];
+
+    return Array.from(document.querySelectorAll('li.list')).filter((row) => {
+      const link = row.querySelector('a.contentLink[href*="/board/"]');
+      return !!(link && row.querySelector('.user_info'));
+    });
+  }
+
   function getArticleInfo(row) {
-    const link = row.querySelector('td.tit a.subject-link');
+    const link = row.querySelector('td.tit a.subject-link, a.contentLink');
     if (!link) return null;
 
     try {
@@ -92,7 +105,7 @@
     return promise;
   }
 
-  function renderDislikeCount(recoCell, count) {
+  function renderDesktopDislikeCount(recoCell, count) {
     const recommendationText = (recoCell.textContent || '').replace(/[^\d-]/g, '').trim() || '0';
     let element = recoCell.querySelector(`.${DISLIKE_CLASS}`);
     if (!element) {
@@ -114,10 +127,37 @@
     element.textContent = String(count);
   }
 
+  function renderMobileDislikeCount(recoCell, count) {
+    const recommendationText = (recoCell.textContent || '').replace(/[^\d-]/g, '').trim() || '0';
+    recoCell.classList.add('ic-reco-with-dislike');
+    recoCell.textContent = '추천 ';
+
+    const recommendElement = document.createElement('span');
+    recommendElement.className = RECOMMEND_CLASS;
+    recommendElement.textContent = recommendationText;
+
+    const dislikeElement = document.createElement('span');
+    dislikeElement.className = DISLIKE_CLASS;
+    dislikeElement.textContent = String(count);
+
+    recoCell.appendChild(recommendElement);
+    recoCell.appendChild(document.createTextNode(' / '));
+    recoCell.appendChild(dislikeElement);
+  }
+
+  function renderDislikeCount(recoCell, count) {
+    if (recoCell.closest('li.list')) {
+      renderMobileDislikeCount(recoCell, count);
+      return;
+    }
+
+    renderDesktopDislikeCount(recoCell, count);
+  }
+
   async function applyDislikeCountToRow(row) {
     if (row.dataset.icDislikeLoading === 'true' || row.dataset.icDislikeLoaded === 'true') return;
 
-    const recoCell = row.querySelector('td.reco');
+    const recoCell = row.querySelector('td.reco, .user_info .reco');
     const articleInfo = getArticleInfo(row);
     if (!recoCell || !articleInfo) return;
 
@@ -138,9 +178,13 @@
 
   function initDislikeCount() {
     const table = getListTable();
-    if (!table) return;
+    if (table) {
+      table.querySelectorAll('tbody tr').forEach((row) => {
+        applyDislikeCountToRow(row);
+      });
+    }
 
-    table.querySelectorAll('tbody tr').forEach((row) => {
+    getMobilePostRows().forEach((row) => {
       applyDislikeCountToRow(row);
     });
   }

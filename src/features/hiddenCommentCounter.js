@@ -129,9 +129,16 @@
 
   function initHiddenCommentCounter() {
     if (!isArticlePage()) return;
-    if (!global.chrome || !chrome.storage || !chrome.storage.sync) return;
+    if (!global.chrome || !chrome.storage) return;
+    const storageArea =
+      config && typeof config.getStorageArea === 'function' ? config.getStorageArea() : null;
+    const storageAreaName =
+      config && typeof config.getStorageAreaName === 'function'
+        ? config.getStorageAreaName()
+        : 'sync';
+    if (!storageArea) return;
 
-    chrome.storage.sync.get(
+    storageArea.get(
       {
         [STORAGE_KEYS.hideNoBadgeEnabled]: false,
         [STORAGE_KEYS.hideNoBadgeComments]: true,
@@ -151,7 +158,7 @@
     );
 
     chrome.storage.onChanged.addListener((changes, areaName) => {
-      if (areaName !== 'sync') return;
+      if (areaName !== storageAreaName) return;
 
       const hasNoBadgeChange =
         changes[STORAGE_KEYS.hideNoBadgeEnabled] ||
@@ -162,7 +169,7 @@
 
       if (!hasNoBadgeChange && !hasCombatPowerChange) return;
 
-      chrome.storage.sync.get(
+      storageArea.get(
         {
           [STORAGE_KEYS.hideNoBadgeEnabled]: false,
           [STORAGE_KEYS.hideNoBadgeComments]: true,
