@@ -57,12 +57,33 @@
 
     const bar = document.createElement('div');
     bar.className = 'ic-action-bar';
-    bar.innerHTML = `
-      <span class="ic-label">InvenClear</span>
-      <span class="ic-status">선택 <b class="ic-count">0</b>개</span>
-      <button type="button" class="ic-btn ic-btn-delete" disabled>선택 삭제</button>
-      <span class="ic-progress" aria-live="polite"></span>
-    `;
+
+    const label = document.createElement('span');
+    label.className = 'ic-label';
+    label.textContent = 'InvenClear';
+    bar.appendChild(label);
+
+    const status = document.createElement('span');
+    status.className = 'ic-status';
+    status.appendChild(document.createTextNode('선택 '));
+    const count = document.createElement('b');
+    count.className = 'ic-count';
+    count.textContent = '0';
+    status.appendChild(count);
+    status.appendChild(document.createTextNode('개'));
+    bar.appendChild(status);
+
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.className = 'ic-btn ic-btn-delete';
+    deleteButton.disabled = true;
+    deleteButton.textContent = '선택 삭제';
+    bar.appendChild(deleteButton);
+
+    const progress = document.createElement('span');
+    progress.className = 'ic-progress';
+    progress.setAttribute('aria-live', 'polite');
+    bar.appendChild(progress);
     table.parentNode.insertBefore(bar, table);
 
     const countEl = bar.querySelector('.ic-count');

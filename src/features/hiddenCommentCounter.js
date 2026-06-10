@@ -35,13 +35,39 @@
 
     const counter = document.createElement('div');
     counter.className = COUNTER_CLASS;
-    counter.innerHTML = [
-      '<div class="ic-hidden-comment-counter-title">가려진 댓글 갯수 : <strong>0</strong></div>',
-      '<div class="ic-hidden-comment-counter-detail">',
-      '<span data-row-type="noBadge">No인장 <strong data-type="noBadge">0</strong>개</span>',
-      '<span data-row-type="combatPower">전투력 미만 <strong data-type="combatPower">0</strong>개</span>',
-      '</div>',
-    ].join('');
+
+    const title = document.createElement('div');
+    title.className = 'ic-hidden-comment-counter-title';
+    title.appendChild(document.createTextNode('가려진 댓글 갯수 : '));
+    const total = document.createElement('strong');
+    total.textContent = '0';
+    title.appendChild(total);
+
+    const detail = document.createElement('div');
+    detail.className = 'ic-hidden-comment-counter-detail';
+
+    const noBadgeRow = document.createElement('span');
+    noBadgeRow.dataset.rowType = 'noBadge';
+    noBadgeRow.appendChild(document.createTextNode('No인장 '));
+    const noBadgeCount = document.createElement('strong');
+    noBadgeCount.dataset.type = 'noBadge';
+    noBadgeCount.textContent = '0';
+    noBadgeRow.appendChild(noBadgeCount);
+    noBadgeRow.appendChild(document.createTextNode('개'));
+
+    const combatPowerRow = document.createElement('span');
+    combatPowerRow.dataset.rowType = 'combatPower';
+    combatPowerRow.appendChild(document.createTextNode('전투력 미만 '));
+    const combatPowerCount = document.createElement('strong');
+    combatPowerCount.dataset.type = 'combatPower';
+    combatPowerCount.textContent = '0';
+    combatPowerRow.appendChild(combatPowerCount);
+    combatPowerRow.appendChild(document.createTextNode('개'));
+
+    detail.appendChild(noBadgeRow);
+    detail.appendChild(combatPowerRow);
+    counter.appendChild(title);
+    counter.appendChild(detail);
     host.insertBefore(counter, host.firstChild);
     return counter;
   }
