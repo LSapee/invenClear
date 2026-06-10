@@ -256,6 +256,8 @@
           value: getDiceValue(),
           deadline: getDiceDeadline(),
           excludeHidden: masterToggle.checked && commentToggle.checked,
+          excludeCombatPowerHidden:
+            combatPowerToggle.checked && combatPowerHideBelowToggle.checked,
         },
         (response) => {
           diceConfirmButton.disabled = false;

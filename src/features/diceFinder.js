@@ -4,6 +4,8 @@
   const invenClear = global.InvenClear || (global.InvenClear = {});
   const { clickElement, getCollapsedCommentHeaders, isCommentLoading, sleep } = invenClear.util;
   const COMMENT_SELECTOR = 'li[id^="cmt"]';
+  const NO_BADGE_HIDDEN_CLASS = 'ic-badge-hidden';
+  const COMBAT_POWER_HIDDEN_CLASS = 'ic-combat-power-filter-hidden';
   const EXPAND_SETTLE_MS = 1800;
   const MAX_EXPAND_STEPS = 12;
   const EXPAND_WAIT_LIMIT_MS = 6000;
@@ -54,10 +56,17 @@
     return textNode ? textNode.textContent.trim() : nickname.textContent.trim();
   }
 
-  function collectDiceComments(deadlineMinutes, excludeHidden) {
+  function shouldExcludeHiddenComment(item, options) {
+    return (
+      (options.excludeNoBadgeHidden && item.classList.contains(NO_BADGE_HIDDEN_CLASS)) ||
+      (options.excludeCombatPowerHidden && item.classList.contains(COMBAT_POWER_HIDDEN_CLASS))
+    );
+  }
+
+  function collectDiceComments(deadlineMinutes, options) {
     return Array.from(document.querySelectorAll(COMMENT_SELECTOR))
       .map((item) => {
-        if (excludeHidden && item.classList.contains('ic-badge-hidden')) return null;
+        if (shouldExcludeHiddenComment(item, options)) return null;
 
         const content = getCommentContent(item);
         const number = parseDiceNumber(content);
@@ -109,7 +118,8 @@
     const item = document.getElementById(`cmt${commentId}`);
     if (!item) return false;
 
-    item.classList.remove('ic-badge-hidden');
+    item.classList.remove(NO_BADGE_HIDDEN_CLASS);
+    item.classList.remove(COMBAT_POWER_HIDDEN_CLASS);
     item.scrollIntoView({ behavior: 'smooth', block: 'center' });
     highlightComment(item);
     return true;
@@ -223,7 +233,10 @@
       request.deadline && Number.isInteger(request.deadline.minutes)
         ? request.deadline.minutes
         : null;
-    const comments = collectDiceComments(deadlineMinutes, request.excludeHidden === true);
+    const comments = collectDiceComments(deadlineMinutes, {
+      excludeNoBadgeHidden: request.excludeHidden === true,
+      excludeCombatPowerHidden: request.excludeCombatPowerHidden === true,
+    });
     const result = buildResult(request.mode, comments, request.value);
 
     sendResponse({
