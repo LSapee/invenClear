@@ -1,10 +1,10 @@
 # InvenClear
 
-인벤 게시판에서 **내 글 / 내 댓글**을 한 번에 정리하고, 일부 게시판에서는 **No인장 필터**, **메이플 전투력 표시**, **주사위 찾기**를 사용할 수 있는 Chrome 확장 프로그램입니다.
+인벤 게시판에서 **내 글 / 내 댓글**을 한 번에 정리하고, 일부 게시판에서는 **No인장 필터**, **메이플 전투력 표시**, **주사위 찾기**를 사용할 수 있는 Chrome/Firefox 확장 프로그램입니다.
 
 ## 주요 기능
 
-- **내 글 삭제** (`?my=post`) — 체크박스로 여러 글을 선택하고 한 번에 삭제
+- **내 글 삭제** (`?my=post`) — 체크박스로 여러 글을 선택하거나 댓글 없는 글을 한 번에 삭제
 - **내 댓글 삭제** (`?my=opi`) — 각 글의 댓글을 불러와 내 댓글만 선택 삭제
 - **100개 초과 댓글 자동 펼침** — 접혀 있는 댓글 구간을 자동으로 열고 수집
 - **주사위 댓글 대응** — 인벤 `/주사위` 기능으로 생성된 `dice` 댓글도 함께 처리
@@ -20,11 +20,16 @@
 ### Chrome 웹스토어
 > [Inven Clear 설치하러 가기](https://chromewebstore.google.com/detail/inven-clear/ojllcdhcdkeolkhogohpdkhebalhhagn?hl=ko)
 
+### firefox Addon
+> [Inven Clear 설치하러 가기](https://addons.mozilla.org/ko/firefox/addon/inven-clear/)
+
 ### 내 글 / 내 댓글 정리
 1. 인벤에 로그인
 2. 내 글 목록(`?my=post`) 또는 내 댓글 목록(`?my=opi`) 페이지 접속
 3. 삭제할 항목을 체크박스로 선택
 4. **선택 삭제** 버튼 클릭
+
+내 글 목록에서는 **댓글 없는 글 삭제** 버튼으로 현재 목록에 보이는 댓글 0개 글만 한 번에 삭제할 수 있습니다.
 
 ### No인장 가리기
 1. Chrome 툴바에서 **Inven Clear** 아이콘 클릭
@@ -61,33 +66,47 @@
 ```
 invenClear/
 ├── src/
-│   ├── manifest.json      # MV3 매니페스트
-│   ├── content.js         # URL별 기능 라우터
-│   ├── popup.html         # 확장 아이콘 popup UI
-│   ├── popup.css          # popup 스타일
-│   ├── popup.js           # popup 토글 상태 저장
+│   ├── manifest.json              # Chrome MV3 매니페스트
+│   ├── manifest.firefox.json      # Firefox MV2 매니페스트
+│   ├── background.js              # 모바일 전투력 조회 background script
+│   ├── content.js                 # URL별 기능 초기화 라우터
+│   ├── popup.html                 # 확장 아이콘 popup UI
+│   ├── popup.css                  # popup 스타일
+│   ├── popup.js                   # popup 토글/도구 상태 저장
 │   ├── features/
-│   │   ├── badgeFilter.js # No인장 가리기 기능
-│   │   ├── combatPower.js # 댓글 전투력/시그니쳐 업적 표시
+│   │   ├── badgeFilter.js         # No인장 가리기 기능
+│   │   ├── combatPower.js         # 전투력/시그니쳐 업적 표시
+│   │   ├── combatPowerInventoryFrame.js # 인벤토리 iframe 전투력 파싱 helper
 │   │   ├── hiddenCommentCounter.js # 가려진 댓글 수 표시
-│   │   ├── dislikeCount.js # 게시글 목록 비추천 수 표시
-│   │   ├── diceFinder.js  # 주사위 댓글 검색
-│   │   ├── posts.js       # 내 글 선택/삭제
-│   │   └── comments.js    # 내 댓글 조회/선택/삭제
+│   │   ├── dislikeCount.js        # 게시글 목록 비추천 수 표시
+│   │   ├── diceFinder.js          # 주사위 댓글 검색
+│   │   ├── posts.js               # 내 글 선택/삭제
+│   │   └── comments.js            # 내 댓글 조회/선택/삭제
 │   ├── shared/
-│   │   ├── config.js      # 공통 설정/스토리지 키
-│   │   ├── table.js       # 게시판 테이블 탐색
-│   │   └── util.js        # 공통 유틸
+│   │   ├── config.js              # 공통 설정/스토리지 키
+│   │   ├── table.js               # 게시판 테이블 탐색
+│   │   └── util.js                # 공통 유틸
 │   ├── styles/
-│   │   ├── base.css       # 공통 UI 스타일
-│   │   ├── posts.css      # 게시글 전용 스타일
-│   │   └── comments.css   # 댓글 전용 스타일
-│   └── img/               # 아이콘 및 이미지
-├── PRIVACY.md          # 개인정보처리방침
-└── docs/
-    ├── AI_COLLAB_NOTES.md       # AI 협업 개선 메모
-    ├── resolved-improvements.md # 해결된 개선 내역
-    └── TEST_CHECKLIST.md        # 배포 전 수동 테스트 체크리스트
+│   │   ├── base.css               # 공통 UI 스타일
+│   │   ├── posts.css              # 게시글 전용 스타일
+│   │   └── comments.css           # 댓글 전용 스타일
+│   └── img/                       # 아이콘 및 스크린샷 이미지
+├── scripts/
+│   ├── build-chrome.sh            # Chrome dist 생성
+│   └── build-firefox.sh           # Firefox dist 생성
+├── dist/
+│   ├── chrome/                    # Chrome 빌드 산출물
+│   └── firefox/                   # Firefox 빌드 산출물
+├── zipFiles/
+│   ├── chrome/                    # Chrome 배포 zip
+│   └── firefox/                   # Firefox 배포 zip
+├── docs/
+│   ├── AI_COLLAB_NOTES.md         # AI 협업 개선 메모
+│   ├── resolved-improvements.md   # 해결된 개선 내역
+│   ├── TEST_CHECKLIST.md          # 배포 전 수동 테스트 체크리스트
+│   └── img/                       # 문서용 이미지
+├── PRIVACY.md                   # 개인정보처리방침
+└── README.md
 ```
 
 ## 주의사항

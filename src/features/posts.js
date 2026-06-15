@@ -26,6 +26,46 @@
     return res.ok;
   }
 
+  function parseCommentCount(value) {
+    const text = String(value || '')
+      .replace(/[\s\u00a0]/g, '')
+      .trim();
+    if (!text) return 0;
+
+    const match = text.match(/-?\d+/);
+    if (!match) return null;
+
+    const count = Number(match[0]);
+    return Number.isFinite(count) ? count : null;
+  }
+
+  function getCommentCount(row) {
+    const commentElement = row.querySelector('.con-comment');
+    if (!commentElement) return null;
+
+    const dataCount = parseCommentCount(commentElement.getAttribute('data-opinion-bbs-opi'));
+    if (dataCount !== null) return dataCount;
+
+    return parseCommentCount(commentElement.textContent);
+  }
+
+  function isNoticeRow(row) {
+    return row.classList.contains('notice') || !!row.querySelector('td.num .notice-icon');
+  }
+
+  function isVisibleRow(row) {
+    return (
+      !row.hidden &&
+      row.style.display !== 'none' &&
+      !row.classList.contains('ic-badge-hidden') &&
+      !row.classList.contains('ic-combat-power-filter-hidden')
+    );
+  }
+
+  function isDeletablePostRow(row, postId) {
+    return !!(postId && /^\d+$/.test(postId) && !isNoticeRow(row));
+  }
+
   function initPosts(context) {
     const { comeIdx, page, table, theadRow, tbody } = context;
 
@@ -44,7 +84,7 @@
       const td = document.createElement('td');
       td.className = 'ic-col';
 
-      if (postId) {
+      if (isDeletablePostRow(tr, postId)) {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.className = 'ic-check-row';
@@ -80,6 +120,14 @@
     deleteButton.textContent = '선택 삭제';
     bar.appendChild(deleteButton);
 
+    const deleteNoCommentButton = document.createElement('button');
+    deleteNoCommentButton.type = 'button';
+    deleteNoCommentButton.className = 'ic-btn ic-btn-delete ic-btn-delete-no-comment';
+    deleteNoCommentButton.disabled = true;
+    deleteNoCommentButton.textContent = '댓글 없는 글 삭제';
+    deleteNoCommentButton.title = '현재 목록에서 댓글이 0개인 글을 삭제합니다.';
+    bar.appendChild(deleteNoCommentButton);
+
     const progress = document.createElement('span');
     progress.className = 'ic-progress';
     progress.setAttribute('aria-live', 'polite');
@@ -87,18 +135,47 @@
     table.parentNode.insertBefore(bar, table);
 
     const countEl = bar.querySelector('.ic-count');
-    const btnDelete = bar.querySelector('.ic-btn-delete');
+    const btnDelete = deleteButton;
+    const btnDeleteNoComment = deleteNoCommentButton;
     const progressEl = bar.querySelector('.ic-progress');
+    let isDeleting = false;
 
     function getCheckedBoxes() {
       return Array.from(tbody.querySelectorAll('.ic-check-row:checked'));
     }
 
+    function getNoCommentPostTargets() {
+      return Array.from(tbody.querySelectorAll('tr'))
+        .map((row) => {
+          const postId = getArticleId(row);
+          return { row, postId, commentCount: getCommentCount(row) };
+        })
+        .filter(
+          ({ row, postId, commentCount }) =>
+            isVisibleRow(row) && isDeletablePostRow(row, postId) && commentCount === 0
+        );
+    }
+
+    function getSelectedPostTargets() {
+      return getCheckedBoxes()
+        .map((checkbox) => ({
+          checkbox,
+          postId: checkbox.dataset.postId,
+          row: checkbox.closest('tr'),
+        }))
+        .filter(({ postId, row }) => postId && row);
+    }
+
     function updateState() {
       const checked = getCheckedBoxes();
       const all = tbody.querySelectorAll('.ic-check-row');
+      const noCommentCount = getNoCommentPostTargets().length;
       countEl.textContent = String(checked.length);
-      btnDelete.disabled = checked.length === 0;
+      btnDelete.disabled = isDeleting || checked.length === 0;
+      btnDeleteNoComment.disabled = isDeleting || noCommentCount === 0;
+      btnDeleteNoComment.textContent =
+        noCommentCount > 0 ? `댓글 없는 글 삭제 (${noCommentCount})` : '댓글 없는 글 삭제';
+      allCheckbox.disabled = isDeleting || all.length === 0;
       allCheckbox.checked = all.length > 0 && checked.length === all.length;
       allCheckbox.indeterminate = checked.length > 0 && checked.length < all.length;
     }
@@ -116,30 +193,36 @@
       }
     });
 
-    btnDelete.addEventListener('click', async () => {
-      const checked = getCheckedBoxes();
-      if (checked.length === 0) return;
+    const rowStateObserver = new MutationObserver(updateState);
+    rowStateObserver.observe(tbody, {
+      attributes: true,
+      attributeFilter: ['class', 'style', 'hidden'],
+      childList: true,
+      subtree: true,
+    });
 
-      const message = `선택한 ${checked.length}개의 글을 삭제합니다.\n되돌릴 수 없습니다. 계속할까요?`;
+    async function deletePostTargets(targets, message) {
+      if (targets.length === 0) return;
       if (!confirm(message)) return;
 
-      btnDelete.disabled = true;
-      allCheckbox.disabled = true;
+      isDeleting = true;
+      updateState();
       let done = 0;
       let failed = 0;
 
-      for (let index = 0; index < checked.length; index++) {
-        const checkbox = checked[index];
-        const postId = checkbox.dataset.postId;
-        const row = checkbox.closest('tr');
-        progressEl.textContent = `${index + 1} / ${checked.length} 처리 중 (#${postId})`;
+      for (let index = 0; index < targets.length; index++) {
+        const { checkbox, postId, row } = targets[index];
+        progressEl.textContent = `${index + 1} / ${targets.length} 처리 중 (#${postId})`;
 
         try {
           const ok = await deleteOnePost(comeIdx, page, postId);
           if (ok) {
             done++;
             if (row) row.classList.add('ic-row-deleted');
-            checkbox.disabled = true;
+            if (checkbox) {
+              checkbox.checked = false;
+              checkbox.disabled = true;
+            }
           } else {
             failed++;
             if (row) row.classList.add('ic-row-failed');
@@ -150,11 +233,35 @@
           console.error('[InvenClear] 삭제 실패', postId, error);
         }
 
-        await sleep(300 + Math.random() * 1300);
+        await sleep(100 + Math.random() * 200);
       }
 
       progressEl.textContent = `완료 — 성공 ${done}건, 실패 ${failed}건. 잠시 후 새로고침합니다.`;
       setTimeout(() => location.reload(), 1500);
+    }
+
+    btnDelete.addEventListener('click', async () => {
+      const targets = getSelectedPostTargets();
+      if (targets.length === 0) return;
+
+      await deletePostTargets(
+        targets,
+        `선택한 ${targets.length}개의 글을 삭제합니다.\n되돌릴 수 없습니다. 계속할까요?`
+      );
+    });
+
+    btnDeleteNoComment.addEventListener('click', async () => {
+      const targets = getNoCommentPostTargets();
+      if (targets.length === 0) {
+        progressEl.textContent = '현재 목록에 댓글 없는 글이 없습니다.';
+        updateState();
+        return;
+      }
+
+      await deletePostTargets(
+        targets,
+        `현재 목록에서 댓글 없는 글 ${targets.length}개를 삭제합니다.\n되돌릴 수 없습니다. 계속할까요?`
+      );
     });
 
     updateState();
