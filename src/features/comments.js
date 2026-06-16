@@ -8,6 +8,9 @@
   const COMMENT_ROOT_SELECTOR = '#cmt, #powerbbsCmt2, .commentContainer, [id^="pwbbsCmt_"]';
   const COMMENT_ROW_SELECTOR =
     'li.row[id^="cmt"], li.dice[id^="cmt"], li[id^="cmt"]';
+  const LOAD_STATE_IDLE = 'idle';
+  const LOAD_STATE_LOADING = 'loading';
+  const LOAD_STATE_LOADED = 'loaded';
 
   async function fetchMyComments(boardSlug, comeIdx, articleId, opts = {}) {
     const url = `/board/${boardSlug}/${comeIdx}/${articleId}?my=opi`;
@@ -269,6 +272,7 @@
       button.className = 'ic-btn ic-btn-view ic-row-view';
       button.textContent = '보기';
       button.dataset.articleId = articleId;
+      button.dataset.loadState = LOAD_STATE_IDLE;
       button.addEventListener('click', () => loadArticleComments(tr, articleId, button));
       td.appendChild(button);
       articleRows.push({ tr, articleId, btn: button });
@@ -340,6 +344,30 @@
       if (active.length > 0) allCheckbox.disabled = false;
     }
 
+    function hasExpandedCommentRows(articleTr) {
+      return !!(
+        articleTr &&
+        articleTr.nextElementSibling &&
+        articleTr.nextElementSibling.classList.contains('ic-opi-expand')
+      );
+    }
+
+    function isArticleCommentsLoaded(articleTr, btn) {
+      return (
+        btn.dataset.loadState === LOAD_STATE_LOADED ||
+        btn.dataset.loaded === 'true' ||
+        hasExpandedCommentRows(articleTr)
+      );
+    }
+
+    function canLoadArticleComments(articleTr, btn) {
+      return (
+        btn.dataset.loadState !== LOAD_STATE_LOADING &&
+        !isArticleCommentsLoaded(articleTr, btn) &&
+        !btn.disabled
+      );
+    }
+
     function insertCommentRows(articleTr, articleId, comments) {
       const expandTr = document.createElement('tr');
       expandTr.className = 'ic-opi-expand';
@@ -390,15 +418,17 @@
     }
 
     async function loadArticleComments(tr, articleId, btn) {
-      if (btn.disabled || btn.dataset.loaded === 'true') return;
+      if (!canLoadArticleComments(tr, btn)) return;
 
       btn.disabled = true;
+      btn.dataset.loadState = LOAD_STATE_LOADING;
       btn.textContent = '...';
 
       try {
         const { token, comments } = await fetchMyComments(boardSlug, comeIdx, articleId);
         if (token) articleMap.set(articleId, { token });
         btn.dataset.loaded = 'true';
+        btn.dataset.loadState = LOAD_STATE_LOADED;
 
         if (comments.length === 0) {
           btn.textContent = '없음';
@@ -410,6 +440,8 @@
         updateState();
       } catch (error) {
         console.error('[InvenClear] 댓글 로드 실패', articleId, error);
+        delete btn.dataset.loaded;
+        btn.dataset.loadState = LOAD_STATE_IDLE;
         btn.disabled = false;
         btn.textContent = '재시도';
       }
@@ -433,14 +465,14 @@
         const batchSize = Number(batchBtn.dataset.batchSize);
         const targets = articleRows
           .slice(0, batchSize)
-          .filter(({ btn }) => btn.dataset.loaded !== 'true' && !btn.disabled);
+          .filter(({ tr, btn }) => canLoadArticleComments(tr, btn));
         if (targets.length === 0) return;
 
         batchButtons.forEach((b) => (b.disabled = true));
         let done = 0;
         progressEl.textContent = `조회 중 ${done} / ${targets.length}`;
 
-        const concurrency = 1 + Math.floor(Math.random() * 3);
+        const concurrency = 3 + Math.floor(Math.random() * 3);
         let cursor = 0;
         const workers = Array.from(
           { length: Math.min(concurrency, targets.length) },
@@ -453,7 +485,7 @@
               await loadArticleComments(tr, articleId, btn);
               done++;
               progressEl.textContent = `조회 중 ${done} / ${targets.length}`;
-              await sleep(200 + Math.random() * 800);
+              await sleep(100 + Math.random() * 200);
             }
           }
         );
@@ -502,7 +534,7 @@
           if (li) li.classList.add('ic-row-failed');
           console.error('[InvenClear] 삭제 실패', cmtidx, error);
         }
-        await sleep(200 + Math.random() * 800);
+        await sleep(100 + Math.random() * 200);
       }
       if (failed > 0) {
         progressEl.textContent = `완료 — 성공 ${done}건, 실패 ${failed}건. 실패 항목을 확인한 뒤 필요하면 새로고침해 주세요.`;
@@ -511,7 +543,7 @@
       }
 
       progressEl.textContent = `완료 — 성공 ${done}건, 실패 0건. 잠시 후 새로고침합니다.`;
-      setTimeout(() => location.reload(), 1500);
+      setTimeout(() => location.reload(), 1000);
     });
 
     updateState();

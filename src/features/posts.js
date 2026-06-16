@@ -209,35 +209,52 @@
       updateState();
       let done = 0;
       let failed = 0;
+      let processed = 0;
+      let cursor = 0;
+      const concurrency = 1 + Math.floor(Math.random() * 5);
+      const workerCount = Math.min(concurrency, targets.length);
 
-      for (let index = 0; index < targets.length; index++) {
-        const { checkbox, postId, row } = targets[index];
-        progressEl.textContent = `${index + 1} / ${targets.length} 처리 중 (#${postId})`;
+      progressEl.textContent = `삭제 중 0 / ${targets.length} (동시 ${workerCount}개)`;
 
-        try {
-          const ok = await deleteOnePost(comeIdx, page, postId);
-          if (ok) {
-            done++;
-            if (row) row.classList.add('ic-row-deleted');
-            if (checkbox) {
-              checkbox.checked = false;
-              checkbox.disabled = true;
+      const workers = Array.from(
+        { length: workerCount },
+        async () => {
+          while (true) {
+            const current = cursor++;
+            if (current >= targets.length) return;
+
+            const { checkbox, postId, row } = targets[current];
+
+            try {
+              const ok = await deleteOnePost(comeIdx, page, postId);
+              if (ok) {
+                done++;
+                if (row) row.classList.add('ic-row-deleted');
+                if (checkbox) {
+                  checkbox.checked = false;
+                  checkbox.disabled = true;
+                }
+              } else {
+                failed++;
+                if (row) row.classList.add('ic-row-failed');
+              }
+            } catch (error) {
+              failed++;
+              if (row) row.classList.add('ic-row-failed');
+              console.error('[InvenClear] 삭제 실패', postId, error);
             }
-          } else {
-            failed++;
-            if (row) row.classList.add('ic-row-failed');
-          }
-        } catch (error) {
-          failed++;
-          if (row) row.classList.add('ic-row-failed');
-          console.error('[InvenClear] 삭제 실패', postId, error);
-        }
 
-        await sleep(100 + Math.random() * 200);
-      }
+            processed++;
+            progressEl.textContent = `삭제 중 ${processed} / ${targets.length} (동시 ${workerCount}개)`;
+            await sleep(100 + Math.random() * 200);
+          }
+        }
+      );
+
+      await Promise.all(workers);
 
       progressEl.textContent = `완료 — 성공 ${done}건, 실패 ${failed}건. 잠시 후 새로고침합니다.`;
-      setTimeout(() => location.reload(), 1500);
+      setTimeout(() => location.reload(), 1000);
     }
 
     btnDelete.addEventListener('click', async () => {

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Inven Clear",
-  "version": "0.4.1",
-  "description": "인벤 '내 글/내 댓글' 목록에서 체크박스로 여러 글을 한 번에 삭제합니다.",
+  "version": "0.4.2",
+  "description": "인벤 내 글/댓글 정리, No인장 필터, 전투력 표시, 주사위 찾기를 지원합니다.",
   "icons": {
     "16": "img/icons/icon16.png",
     "32": "img/icons/icon32.png",
